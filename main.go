@@ -27,6 +27,9 @@ type Compiler struct {
 	info *types.Info
 	pkg  *types.Package
 
+	topTypes []*ast.TypeSpec
+	topFuncs []*ast.FuncDecl
+
 	result bytes.Buffer
 }
 
@@ -55,8 +58,35 @@ func (comp *Compiler) compile() {
 		fmt.Println(err)
 	}
 
-	// Compile
-	fmt.Println(comp.info.Defs)
+	// Collect top-level decls
+	for _, decl := range file.Decls {
+		switch decl := decl.(type) {
+		case *ast.GenDecl:
+			switch decl.Tok {
+			case token.CONST:
+			case token.VAR:
+				for _, spec := range decl.Specs {
+					for _, name := range spec.(*ast.ValueSpec).Names {
+						fmt.Printf("%s: global variable not allowed: %s\n", fileSet.PositionFor(spec.Pos(), true), name)
+					}
+				}
+			case token.TYPE:
+				for _, spec := range decl.Specs {
+					comp.topTypes = append(comp.topTypes, spec.(*ast.TypeSpec))
+				}
+			}
+		case *ast.FuncDecl:
+			comp.topFuncs = append(comp.topFuncs, decl)
+		}
+	}
+
+	// Debug
+	for _, spec := range comp.topTypes {
+		fmt.Println("type: ", spec.Name)
+	}
+	for _, decl := range comp.topFuncs {
+		fmt.Println("func: ", decl.Name)
+	}
 }
 
 //

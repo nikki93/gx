@@ -5,8 +5,9 @@ type Foo struct {
 	Y [32]byte
 }
 
+func add(x, y int) int {
+	return x + y
+}
+
 func main() {
-	x := 42
-	println("hello, world!")
-	println(x)
 }
