@@ -47,18 +47,10 @@ func (comp *Compiler) errored() bool {
 }
 
 //
-// Writing
+// Analysis
 //
 
-func (comp *Compiler) writef(format string, args ...interface{}) {
-	fmt.Fprintf(comp.output, format, args...)
-}
-
-//
-// Functions
-//
-
-func (comp *Compiler) makeFunc(decl *ast.FuncDecl) *Func {
+func (comp *Compiler) analyzeFunc(decl *ast.FuncDecl) *Func {
 	signature := comp.typesInfo.Defs[decl.Name].Type().(*types.Signature)
 	if signature.Results().Len() > 1 {
 		comp.eprintf(decl.Type.Results.Pos(), "multiple return values not supported")
@@ -72,10 +64,6 @@ func (comp *Compiler) makeFunc(decl *ast.FuncDecl) *Func {
 		prototype: "void foo();",
 	}
 }
-
-//
-// Top-level
-//
 
 func (comp *Compiler) analyze() {
 	// Initialize
@@ -110,9 +98,17 @@ func (comp *Compiler) analyze() {
 	for _, decl := range astFile.Decls {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
-			comp.funcs = append(comp.funcs, comp.makeFunc(decl))
+			comp.funcs = append(comp.funcs, comp.analyzeFunc(decl))
 		}
 	}
+}
+
+//
+// Writing
+//
+
+func (comp *Compiler) writef(format string, args ...interface{}) {
+	fmt.Fprintf(comp.output, format, args...)
 }
 
 func (comp *Compiler) writeSectionComment(sectionName string) {
@@ -127,6 +123,10 @@ func (comp *Compiler) write() {
 		comp.writef("%s\n", fun.prototype)
 	}
 }
+
+//
+// Top-level
+//
 
 func (comp *Compiler) compile() {
 	comp.analyze()
