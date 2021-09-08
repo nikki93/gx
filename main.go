@@ -27,8 +27,8 @@ type Compiler struct {
 	info *types.Info
 	pkg  *types.Package
 
-	topTypes []*ast.TypeSpec
-	topFuncs []*ast.FuncDecl
+	types []*ast.TypeSpec
+	funcs []*ast.FuncDecl
 
 	result bytes.Buffer
 }
@@ -72,19 +72,19 @@ func (comp *Compiler) compile() {
 				}
 			case token.TYPE:
 				for _, spec := range decl.Specs {
-					comp.topTypes = append(comp.topTypes, spec.(*ast.TypeSpec))
+					comp.types = append(comp.types, spec.(*ast.TypeSpec))
 				}
 			}
 		case *ast.FuncDecl:
-			comp.topFuncs = append(comp.topFuncs, decl)
+			comp.funcs = append(comp.funcs, decl)
 		}
 	}
 
 	// Debug
-	for _, spec := range comp.topTypes {
+	for _, spec := range comp.types {
 		fmt.Println("type: ", spec.Name)
 	}
-	for _, decl := range comp.topFuncs {
+	for _, decl := range comp.funcs {
 		fmt.Println("func: ", decl.Name)
 	}
 }
