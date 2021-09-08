@@ -61,6 +61,7 @@ func (comp *Compiler) makeFunc(decl *ast.FuncDecl) *Func {
 	return &Func{
 		decl:      decl,
 		signature: signature,
+		prototype: "void foo();",
 	}
 }
 
@@ -106,14 +107,19 @@ func (comp *Compiler) analyze() {
 	}
 }
 
+func (comp *Compiler) writeSectionComment(sectionName string) {
+	fmt.Fprintf(comp.output, "\n\n//\n// %s\n//\n\n", sectionName)
+}
+
 func (comp *Compiler) write() {
 	// Preamble
-	fmt.Fprintf(comp.output, "#include \"../preamble.hh\"\n\n")
+	fmt.Fprintf(comp.output, "#include \"../preamble.hh\"\n")
 
 	// Function prototypes
-	//for _, fun := range comp.funcs {
-	//
-	//}
+	comp.writeSectionComment("Function prototypes")
+	for _, fun := range comp.funcs {
+		fmt.Fprintln(comp.output, fun.prototype)
+	}
 }
 
 func (comp *Compiler) compile() {
