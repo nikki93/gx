@@ -17,7 +17,7 @@ type Func struct {
 	decl      *ast.FuncDecl
 	signature *types.Signature
 
-	prototype string
+	outputDecl string
 }
 
 type Compiler struct {
@@ -56,12 +56,12 @@ func (comp *Compiler) analyzeFunc(decl *ast.FuncDecl) *Func {
 		comp.eprintf(decl.Type.Results.Pos(), "multiple return values not supported")
 	}
 
-	//prototypeBuf := &bytes.Buffer{}
+	//outputDeclBuf := &bytes.Buffer{}
 
 	return &Func{
-		decl:      decl,
-		signature: signature,
-		prototype: "void foo();",
+		decl:       decl,
+		signature:  signature,
+		outputDecl: "void foo();",
 	}
 }
 
@@ -118,9 +118,9 @@ func (comp *Compiler) writeSectionComment(sectionName string) {
 func (comp *Compiler) write() {
 	comp.writef("#include \"../preamble.hh\"\n")
 
-	comp.writeSectionComment("Function prototypes")
+	comp.writeSectionComment("Function declarations")
 	for _, fun := range comp.funcs {
-		comp.writef("%s\n", fun.prototype)
+		comp.writef("%s\n", fun.outputDecl)
 	}
 }
 
