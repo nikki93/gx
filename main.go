@@ -21,9 +21,9 @@ type Func struct {
 }
 
 type Compiler struct {
-	inputFilename string
-	fileSet       *token.FileSet
+	inputFilenames []string
 
+	fileSet   *token.FileSet
 	typesInfo *types.Info
 
 	funcs []*Func
@@ -72,10 +72,14 @@ func (c *Compiler) analyze() {
 
 	// Parse
 	c.fileSet = token.NewFileSet()
-	astFile, err := parser.ParseFile(c.fileSet, c.inputFilename, nil, 0)
-	if err != nil {
-		fmt.Println(err)
-		return
+	var files []*ast.File
+	for _, inputFilename := range c.inputFilenames {
+		file, err := parser.ParseFile(c.fileSet, inputFilename, nil, 0)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		files = append(files, file)
 	}
 
 	// Type-check
@@ -88,16 +92,18 @@ func (c *Compiler) analyze() {
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		Scopes:     make(map[ast.Node]*types.Scope),
 	}
-	if _, err = config.Check("", c.fileSet, []*ast.File{astFile}, c.typesInfo); err != nil {
+	if _, err := config.Check("", c.fileSet, files, c.typesInfo); err != nil {
 		fmt.Println(err)
 		return
 	}
 
 	// Functions
-	for _, decl := range astFile.Decls {
-		switch decl := decl.(type) {
-		case *ast.FuncDecl:
-			c.funcs = append(c.funcs, c.analyzeFunc(decl))
+	for _, file := range files {
+		for _, decl := range file.Decls {
+			switch decl := decl.(type) {
+			case *ast.FuncDecl:
+				c.funcs = append(c.funcs, c.analyzeFunc(decl))
+			}
 		}
 	}
 }
@@ -136,7 +142,12 @@ func (c *Compiler) compile() {
 
 func main() {
 	// Compile
-	c := Compiler{inputFilename: "examples/basic_1.go"}
+	c := Compiler{
+		inputFilenames: []string{
+			"examples/basic_1.go",
+			"examples/basic_other.go",
+		},
+	}
 	c.compile()
 
 	// Print output
