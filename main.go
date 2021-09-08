@@ -36,24 +36,24 @@ type Compiler struct {
 // Errors
 //
 
-func (comp *Compiler) eprintf(pos token.Pos, format string, args ...interface{}) {
-	fmt.Fprintf(comp.errors, "%s: ", comp.fileSet.PositionFor(pos, true))
-	fmt.Fprintf(comp.errors, format, args...)
-	fmt.Fprintln(comp.errors)
+func (c *Compiler) eprintf(pos token.Pos, format string, args ...interface{}) {
+	fmt.Fprintf(c.errors, "%s: ", c.fileSet.PositionFor(pos, true))
+	fmt.Fprintf(c.errors, format, args...)
+	fmt.Fprintln(c.errors)
 }
 
-func (comp *Compiler) errored() bool {
-	return comp.errors.Len() != 0
+func (c *Compiler) errored() bool {
+	return c.errors.Len() != 0
 }
 
 //
 // Analysis
 //
 
-func (comp *Compiler) analyzeFunc(decl *ast.FuncDecl) *Func {
-	signature := comp.typesInfo.Defs[decl.Name].Type().(*types.Signature)
+func (c *Compiler) analyzeFunc(decl *ast.FuncDecl) *Func {
+	signature := c.typesInfo.Defs[decl.Name].Type().(*types.Signature)
 	if signature.Results().Len() > 1 {
-		comp.eprintf(decl.Type.Results.Pos(), "multiple return values not supported")
+		c.eprintf(decl.Type.Results.Pos(), "multiple return values not supported")
 	}
 
 	//outputDeclBuf := &bytes.Buffer{}
@@ -65,14 +65,14 @@ func (comp *Compiler) analyzeFunc(decl *ast.FuncDecl) *Func {
 	}
 }
 
-func (comp *Compiler) analyze() {
+func (c *Compiler) analyze() {
 	// Initialize
-	comp.errors = &bytes.Buffer{}
-	comp.output = &bytes.Buffer{}
+	c.errors = &bytes.Buffer{}
+	c.output = &bytes.Buffer{}
 
 	// Parse
-	comp.fileSet = token.NewFileSet()
-	astFile, err := parser.ParseFile(comp.fileSet, comp.inputFilename, nil, 0)
+	c.fileSet = token.NewFileSet()
+	astFile, err := parser.ParseFile(c.fileSet, c.inputFilename, nil, 0)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -80,7 +80,7 @@ func (comp *Compiler) analyze() {
 
 	// Type-check
 	config := types.Config{}
-	comp.typesInfo = &types.Info{
+	c.typesInfo = &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
 		Defs:       make(map[*ast.Ident]types.Object),
 		Uses:       make(map[*ast.Ident]types.Object),
@@ -88,7 +88,7 @@ func (comp *Compiler) analyze() {
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		Scopes:     make(map[ast.Node]*types.Scope),
 	}
-	_, err = config.Check("", comp.fileSet, []*ast.File{astFile}, comp.typesInfo)
+	_, err = config.Check("", c.fileSet, []*ast.File{astFile}, c.typesInfo)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -98,7 +98,7 @@ func (comp *Compiler) analyze() {
 	for _, decl := range astFile.Decls {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
-			comp.funcs = append(comp.funcs, comp.analyzeFunc(decl))
+			c.funcs = append(c.funcs, c.analyzeFunc(decl))
 		}
 	}
 }
@@ -107,20 +107,20 @@ func (comp *Compiler) analyze() {
 // Writing
 //
 
-func (comp *Compiler) writef(format string, args ...interface{}) {
-	fmt.Fprintf(comp.output, format, args...)
+func (c *Compiler) writef(format string, args ...interface{}) {
+	fmt.Fprintf(c.output, format, args...)
 }
 
-func (comp *Compiler) writeSectionComment(sectionName string) {
-	comp.writef("\n\n//\n// %s\n//\n\n", sectionName)
+func (c *Compiler) writeSectionComment(sectionName string) {
+	c.writef("\n\n//\n// %s\n//\n\n", sectionName)
 }
 
-func (comp *Compiler) write() {
-	comp.writef("#include \"../preamble.hh\"\n")
+func (c *Compiler) write() {
+	c.writef("#include \"../preamble.hh\"\n")
 
-	comp.writeSectionComment("Function declarations")
-	for _, fun := range comp.funcs {
-		comp.writef("%s\n", fun.outputDecl)
+	c.writeSectionComment("Function declarations")
+	for _, fun := range c.funcs {
+		c.writef("%s\n", fun.outputDecl)
 	}
 }
 
@@ -128,10 +128,10 @@ func (comp *Compiler) write() {
 // Top-level
 //
 
-func (comp *Compiler) compile() {
-	comp.analyze()
-	if !comp.errored() {
-		comp.write()
+func (c *Compiler) compile() {
+	c.analyze()
+	if !c.errored() {
+		c.write()
 	}
 }
 
@@ -141,13 +141,13 @@ func (comp *Compiler) compile() {
 
 func main() {
 	// Compile
-	comp := Compiler{inputFilename: "examples/basic_1.go"}
-	comp.compile()
+	c := Compiler{inputFilename: "examples/basic_1.go"}
+	c.compile()
 
 	// Print output
-	if comp.errored() {
-		fmt.Println(comp.errors)
+	if c.errored() {
+		fmt.Println(c.errors)
 	} else {
-		fmt.Println(comp.output)
+		fmt.Println(c.output)
 	}
 }
