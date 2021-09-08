@@ -88,8 +88,7 @@ func (c *Compiler) analyze() {
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		Scopes:     make(map[ast.Node]*types.Scope),
 	}
-	_, err = config.Check("", c.fileSet, []*ast.File{astFile}, c.typesInfo)
-	if err != nil {
+	if _, err = config.Check("", c.fileSet, []*ast.File{astFile}, c.typesInfo); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -111,14 +110,10 @@ func (c *Compiler) writef(format string, args ...interface{}) {
 	fmt.Fprintf(c.output, format, args...)
 }
 
-func (c *Compiler) writeSectionComment(sectionName string) {
-	c.writef("\n\n//\n// %s\n//\n\n", sectionName)
-}
-
 func (c *Compiler) write() {
 	c.writef("#include \"../preamble.hh\"\n")
 
-	c.writeSectionComment("Function declarations")
+	c.writef("\n\n")
 	for _, fun := range c.funcs {
 		c.writef("%s\n", fun.outputDecl)
 	}
