@@ -10,32 +10,72 @@ import (
 )
 
 //
+// Types
+//
+
+type Func struct {
+	decl      *ast.FuncDecl
+	signature *types.Signature
+
+	prototype string
+}
+
+type Compiler struct {
+	inputFilename string
+	fileSet       *token.FileSet
+
+	typesInfo *types.Info
+
+	funcs []*Func
+
+	errors *bytes.Buffer
+	output *bytes.Buffer
+}
+
+//
 // Errors
 //
 
-func unimplemented() {
-	panic("unimplemented")
+func (comp *Compiler) eprintf(pos token.Pos, format string, args ...interface{}) {
+	fmt.Fprintf(comp.errors, "%s: ", comp.fileSet.PositionFor(pos, true))
+	fmt.Fprintf(comp.errors, format, args...)
+	fmt.Fprintln(comp.errors)
+}
+
+func (comp *Compiler) errored() bool {
+	return comp.errors.Len() != 0
 }
 
 //
-// Compiler
+// Functions
 //
 
-type Compiler struct {
-	mainFilename string
+func (comp *Compiler) makeFunc(decl *ast.FuncDecl) *Func {
+	signature := comp.typesInfo.Defs[decl.Name].Type().(*types.Signature)
+	if signature.Results().Len() > 1 {
+		comp.eprintf(decl.Type.Results.Pos(), "multiple return values not supported")
+	}
 
-	info *types.Info
-	pkg  *types.Package
+	//prototypeBuf := &bytes.Buffer{}
 
-	result bytes.Buffer
+	return &Func{
+		decl:      decl,
+		signature: signature,
+	}
 }
 
+//
 // Top-level
+//
 
-func (comp *Compiler) compile() {
+func (comp *Compiler) analyze() {
+	// Initialize
+	comp.errors = &bytes.Buffer{}
+	comp.output = &bytes.Buffer{}
+
 	// Parse
-	fileSet := token.NewFileSet()
-	file, err := parser.ParseFile(fileSet, comp.mainFilename, nil, 0)
+	comp.fileSet = token.NewFileSet()
+	astFile, err := parser.ParseFile(comp.fileSet, comp.inputFilename, nil, 0)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -43,7 +83,7 @@ func (comp *Compiler) compile() {
 
 	// Type-check
 	config := types.Config{}
-	comp.info = &types.Info{
+	comp.typesInfo = &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
 		Defs:       make(map[*ast.Ident]types.Object),
 		Uses:       make(map[*ast.Ident]types.Object),
@@ -51,22 +91,35 @@ func (comp *Compiler) compile() {
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		Scopes:     make(map[ast.Node]*types.Scope),
 	}
-	comp.pkg, err = config.Check("", fileSet, []*ast.File{file}, comp.info)
+	_, err = config.Check("", comp.fileSet, []*ast.File{astFile}, comp.typesInfo)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	// Compile functions
-	var funcDecls []*ast.FuncDecl
-	for _, decl := range file.Decls {
+	// Functions
+	for _, decl := range astFile.Decls {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
-			funcDecls = append(funcDecls, decl)
+			comp.funcs = append(comp.funcs, comp.makeFunc(decl))
 		}
 	}
-	for _, decl := range funcDecls {
-		fmt.Printf("func: %s\n", decl.Name)
+}
+
+func (comp *Compiler) write() {
+	// Preamble
+	fmt.Fprintf(comp.output, "#include \"../preamble.hh\"\n\n")
+
+	// Function prototypes
+	//for _, fun := range comp.funcs {
+	//
+	//}
+}
+
+func (comp *Compiler) compile() {
+	comp.analyze()
+	if !comp.errored() {
+		comp.write()
 	}
 }
 
@@ -76,9 +129,13 @@ func (comp *Compiler) compile() {
 
 func main() {
 	// Compile
-	comp := Compiler{mainFilename: "examples/basic_1.go"}
+	comp := Compiler{inputFilename: "examples/basic_1.go"}
 	comp.compile()
 
-	// Print
-	fmt.Println(comp.result.String())
+	// Print output
+	if comp.errored() {
+		fmt.Println(comp.errors.String())
+	} else {
+		fmt.Println(comp.output.String())
+	}
 }
