@@ -13,7 +13,7 @@ import (
 // Errors
 //
 
-func unimpl() {
+func unimplemented() {
 	panic("unimplemented")
 }
 
@@ -27,9 +27,6 @@ type Compiler struct {
 	info *types.Info
 	pkg  *types.Package
 
-	types []*ast.TypeSpec
-	funcs []*ast.FuncDecl
-
 	result bytes.Buffer
 }
 
@@ -41,10 +38,11 @@ func (comp *Compiler) compile() {
 	file, err := parser.ParseFile(fileSet, comp.mainFilename, nil, 0)
 	if err != nil {
 		fmt.Println(err)
+		return
 	}
 
 	// Type-check
-	config := &types.Config{}
+	config := types.Config{}
 	comp.info = &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
 		Defs:       make(map[*ast.Ident]types.Object),
@@ -56,36 +54,19 @@ func (comp *Compiler) compile() {
 	comp.pkg, err = config.Check("", fileSet, []*ast.File{file}, comp.info)
 	if err != nil {
 		fmt.Println(err)
+		return
 	}
 
-	// Collect top-level decls
+	// Compile functions
+	var funcDecls []*ast.FuncDecl
 	for _, decl := range file.Decls {
 		switch decl := decl.(type) {
-		case *ast.GenDecl:
-			switch decl.Tok {
-			case token.CONST:
-			case token.VAR:
-				for _, spec := range decl.Specs {
-					for _, name := range spec.(*ast.ValueSpec).Names {
-						fmt.Printf("%s: global variable not allowed: %s\n", fileSet.PositionFor(spec.Pos(), true), name)
-					}
-				}
-			case token.TYPE:
-				for _, spec := range decl.Specs {
-					comp.types = append(comp.types, spec.(*ast.TypeSpec))
-				}
-			}
 		case *ast.FuncDecl:
-			comp.funcs = append(comp.funcs, decl)
+			funcDecls = append(funcDecls, decl)
 		}
 	}
-
-	// Debug
-	for _, spec := range comp.types {
-		fmt.Println("type: ", spec.Name)
-	}
-	for _, decl := range comp.funcs {
-		fmt.Println("func: ", decl.Name)
+	for _, decl := range funcDecls {
+		fmt.Printf("func: %s\n", decl.Name)
 	}
 }
 
