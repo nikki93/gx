@@ -17,19 +17,19 @@ type Func struct {
 	decl      *ast.FuncDecl
 	signature *types.Signature
 
-	outputDecl string
+	outDecl string
 }
 
 type Compiler struct {
-	inputFilenames []string
+	filenames []string
 
 	fileSet   *token.FileSet
 	typesInfo *types.Info
 
 	funcs []*Func
 
-	errors *bytes.Buffer
-	output *bytes.Buffer
+	outErrs *bytes.Buffer
+	outCode *bytes.Buffer
 }
 
 //
@@ -37,13 +37,13 @@ type Compiler struct {
 //
 
 func (c *Compiler) eprintf(pos token.Pos, format string, args ...interface{}) {
-	fmt.Fprintf(c.errors, "%s: ", c.fileSet.PositionFor(pos, true))
-	fmt.Fprintf(c.errors, format, args...)
-	fmt.Fprintln(c.errors)
+	fmt.Fprintf(c.outErrs, "%s: ", c.fileSet.PositionFor(pos, true))
+	fmt.Fprintf(c.outErrs, format, args...)
+	fmt.Fprintln(c.outErrs)
 }
 
 func (c *Compiler) errored() bool {
-	return c.errors.Len() != 0
+	return c.outErrs.Len() != 0
 }
 
 //
@@ -59,21 +59,21 @@ func (c *Compiler) analyzeFunc(decl *ast.FuncDecl) *Func {
 	//outputDeclBuf := &bytes.Buffer{}
 
 	return &Func{
-		decl:       decl,
-		signature:  signature,
-		outputDecl: "void foo();",
+		decl:      decl,
+		signature: signature,
+		outDecl:   "void foo();",
 	}
 }
 
 func (c *Compiler) analyze() {
 	// Initialize
-	c.errors = &bytes.Buffer{}
-	c.output = &bytes.Buffer{}
+	c.outErrs = &bytes.Buffer{}
+	c.outCode = &bytes.Buffer{}
 
 	// Parse
 	c.fileSet = token.NewFileSet()
 	var files []*ast.File
-	for _, inputFilename := range c.inputFilenames {
+	for _, inputFilename := range c.filenames {
 		file, err := parser.ParseFile(c.fileSet, inputFilename, nil, 0)
 		if err != nil {
 			fmt.Println(err)
@@ -113,7 +113,7 @@ func (c *Compiler) analyze() {
 //
 
 func (c *Compiler) writef(format string, args ...interface{}) {
-	fmt.Fprintf(c.output, format, args...)
+	fmt.Fprintf(c.outCode, format, args...)
 }
 
 func (c *Compiler) write() {
@@ -121,7 +121,7 @@ func (c *Compiler) write() {
 
 	c.writef("\n\n")
 	for _, fun := range c.funcs {
-		c.writef("%s\n", fun.outputDecl)
+		c.writef("%s\n", fun.outDecl)
 	}
 }
 
@@ -143,7 +143,7 @@ func (c *Compiler) compile() {
 func main() {
 	// Compile
 	c := Compiler{
-		inputFilenames: []string{
+		filenames: []string{
 			"examples/basic_1.go",
 			"examples/basic_other.go",
 		},
@@ -152,8 +152,8 @@ func main() {
 
 	// Print output
 	if c.errored() {
-		fmt.Println(c.errors)
+		fmt.Println(c.outErrs)
 	} else {
-		fmt.Println(c.output)
+		fmt.Println(c.outCode)
 	}
 }
