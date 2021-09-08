@@ -47,6 +47,14 @@ func (comp *Compiler) errored() bool {
 }
 
 //
+// Writing
+//
+
+func (comp *Compiler) writef(format string, args ...interface{}) {
+	fmt.Fprintf(comp.output, format, args...)
+}
+
+//
 // Functions
 //
 
@@ -108,17 +116,15 @@ func (comp *Compiler) analyze() {
 }
 
 func (comp *Compiler) writeSectionComment(sectionName string) {
-	fmt.Fprintf(comp.output, "\n\n//\n// %s\n//\n\n", sectionName)
+	comp.writef("\n\n//\n// %s\n//\n\n", sectionName)
 }
 
 func (comp *Compiler) write() {
-	// Preamble
-	fmt.Fprintf(comp.output, "#include \"../preamble.hh\"\n")
+	comp.writef("#include \"../preamble.hh\"\n")
 
-	// Function prototypes
 	comp.writeSectionComment("Function prototypes")
 	for _, fun := range comp.funcs {
-		fmt.Fprintln(comp.output, fun.prototype)
+		comp.writef("%s\n", fun.prototype)
 	}
 }
 
