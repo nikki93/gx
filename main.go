@@ -134,8 +134,8 @@ func main() {
 
 	// Print output
 	if comp.errored() {
-		fmt.Println(comp.errors.String())
+		fmt.Println(comp.errors)
 	} else {
-		fmt.Println(comp.output.String())
+		fmt.Println(comp.output)
 	}
 }
