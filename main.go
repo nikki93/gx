@@ -7,6 +7,8 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io/ioutil"
+	"path/filepath"
 )
 
 //
@@ -21,7 +23,8 @@ type Func struct {
 }
 
 type Compiler struct {
-	filenames []string
+	directoryPath string
+	filePaths     []string
 
 	fileSet   *token.FileSet
 	typesInfo *types.Info
@@ -66,15 +69,11 @@ func (c *Compiler) analyzeFunc(decl *ast.FuncDecl) *Func {
 }
 
 func (c *Compiler) analyze() {
-	// Initialize
-	c.outErrs = &bytes.Buffer{}
-	c.outCode = &bytes.Buffer{}
-
 	// Parse
 	c.fileSet = token.NewFileSet()
 	var files []*ast.File
-	for _, inputFilename := range c.filenames {
-		file, err := parser.ParseFile(c.fileSet, inputFilename, nil, 0)
+	for _, filePath := range c.filePaths {
+		file, err := parser.ParseFile(c.fileSet, filePath, nil, 0)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -129,7 +128,26 @@ func (c *Compiler) write() {
 // Top-level
 //
 
+func (c *Compiler) init() {
+	// Collect file paths from directory
+	if len(c.filePaths) == 0 && c.directoryPath != "" {
+		fileInfos, err := ioutil.ReadDir(c.directoryPath)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		for _, fileInfo := range fileInfos {
+			c.filePaths = append(c.filePaths, filepath.Join(c.directoryPath, fileInfo.Name()))
+		}
+	}
+
+	// Initialize output buffers
+	c.outErrs = &bytes.Buffer{}
+	c.outCode = &bytes.Buffer{}
+}
+
 func (c *Compiler) compile() {
+	c.init()
 	c.analyze()
 	if !c.errored() {
 		c.write()
@@ -142,12 +160,7 @@ func (c *Compiler) compile() {
 
 func main() {
 	// Compile
-	c := Compiler{
-		filenames: []string{
-			"examples/basic_1.go",
-			"examples/basic_other.go",
-		},
-	}
+	c := Compiler{directoryPath: "example"}
 	c.compile()
 
 	// Print output
