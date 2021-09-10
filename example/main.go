@@ -5,6 +5,7 @@ package example
 //}
 
 func main() {
+	print(14)
 	print(42)
 	//print(add(2, getThree()))
 }

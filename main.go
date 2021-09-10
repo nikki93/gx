@@ -100,10 +100,38 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 	}
 }
 
-func (c *Compiler) writeBlockStmt(decl *ast.BlockStmt) {
+func (c *Compiler) writeExpr(expr ast.Expr) {
+	switch expr := expr.(type) {
+	case *ast.CallExpr:
+	default:
+		c.errorf(expr.Pos(), "unsupported expression type")
+	}
+}
+
+func (c *Compiler) writeExprStmt(exprStmt *ast.ExprStmt) {
+	c.writeExpr(exprStmt.X)
+	c.writef(";\n")
+}
+
+func (c *Compiler) writeStmt(stmt ast.Stmt) {
+	switch stmt := stmt.(type) {
+	case *ast.ExprStmt:
+		c.writeExprStmt(stmt)
+	default:
+		c.errorf(stmt.Pos(), "unsupported statement type")
+	}
+}
+
+func (c *Compiler) writeStmtList(list []ast.Stmt) {
+	for _, stmt := range list {
+		c.writeStmt(stmt)
+	}
+}
+
+func (c *Compiler) writeBlockStmt(block *ast.BlockStmt) {
 	c.writef("{\n")
 	c.indent++
-	c.writef("print(\"hello, world!\");\n")
+	c.writeStmtList(block.List)
 	c.indent--
 	c.writef("}\n")
 }
