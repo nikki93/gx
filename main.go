@@ -29,6 +29,7 @@ type Compiler struct {
 	genTypeNames map[types.Type]string // Should we use `typeutil.Map` (equivalence-based keys)?
 	genFuncDecls map[*ast.FuncDecl]string
 
+	indent int
 	errors *strings.Builder
 	output *strings.Builder
 }
@@ -44,6 +45,11 @@ func (c *Compiler) errored() bool {
 }
 
 func (c *Compiler) writef(format string, args ...interface{}) {
+	if peek := c.output.String(); len(peek) > 0 && peek[len(peek)-1] == '\n' {
+		for i := 0; i < 2*c.indent; i++ {
+			c.output.WriteByte(' ')
+		}
+	}
 	fmt.Fprintf(c.output, format, args...)
 }
 
@@ -94,7 +100,12 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 	}
 }
 
-func (c *Compiler) writeFuncBody(decl *ast.FuncDecl) {
+func (c *Compiler) writeBlockStmt(decl *ast.BlockStmt) {
+	c.writef("{\n")
+	c.indent++
+	c.writef("print(\"hello, world!\");\n")
+	c.indent--
+	c.writef("}\n")
 }
 
 func (c *Compiler) compile() {
@@ -161,9 +172,8 @@ func (c *Compiler) compile() {
 	for _, file := range c.files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
-				c.writef("%s {\n", c.genFuncDecl(decl))
-				c.writeFuncBody(decl)
-				c.writef("}\n")
+				c.writef("%s ", c.genFuncDecl(decl))
+				c.writeBlockStmt(decl.Body)
 			}
 		}
 	}
