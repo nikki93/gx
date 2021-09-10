@@ -15,24 +15,18 @@ import (
 // Types
 //
 
-type Func struct {
-	decl      *ast.FuncDecl
-	signature *types.Signature
-
-	outDecl string
-}
-
 type Compiler struct {
 	directoryPath string
 	filePaths     []string
 
-	fileSet   *token.FileSet
-	typesInfo *types.Info
+	fileSet *token.FileSet
+	files   []*ast.File
+	types   *types.Info
 
-	funcs []*Func
+	funcCppDecls map[*ast.FuncDecl]string
 
-	outErrs *bytes.Buffer
-	outCode *bytes.Buffer
+	errors *bytes.Buffer
+	output *bytes.Buffer
 }
 
 //
@@ -40,50 +34,45 @@ type Compiler struct {
 //
 
 func (c *Compiler) eprintf(pos token.Pos, format string, args ...interface{}) {
-	fmt.Fprintf(c.outErrs, "%s: ", c.fileSet.PositionFor(pos, true))
-	fmt.Fprintf(c.outErrs, format, args...)
-	fmt.Fprintln(c.outErrs)
+	fmt.Fprintf(c.errors, "%s: ", c.fileSet.PositionFor(pos, true))
+	fmt.Fprintf(c.errors, format, args...)
+	fmt.Fprintln(c.errors)
 }
 
 func (c *Compiler) errored() bool {
-	return c.outErrs.Len() != 0
+	return c.errors.Len() != 0
 }
 
 //
 // Analysis
 //
 
-func (c *Compiler) analyzeFunc(decl *ast.FuncDecl) *Func {
-	signature := c.typesInfo.Defs[decl.Name].Type().(*types.Signature)
-	if signature.Results().Len() > 1 {
-		c.eprintf(decl.Type.Results.Pos(), "multiple return values not supported")
-	}
-
-	//outputDeclBuf := &bytes.Buffer{}
-
-	return &Func{
-		decl:      decl,
-		signature: signature,
-		outDecl:   "void foo();",
+func (c *Compiler) funcCppDecl(decl *ast.FuncDecl) string {
+	if result, ok := c.funcCppDecls[decl]; ok {
+		return result
+	} else {
+		//signature := c.types.Defs[funcDecl.Name].Type().(*types.Signature)
+		result = "void foo();"
+		c.funcCppDecls[decl] = result
+		return result
 	}
 }
 
 func (c *Compiler) analyze() {
 	// Parse
 	c.fileSet = token.NewFileSet()
-	var files []*ast.File
 	for _, filePath := range c.filePaths {
 		file, err := parser.ParseFile(c.fileSet, filePath, nil, 0)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		files = append(files, file)
+		c.files = append(c.files, file)
 	}
 
 	// Type-check
 	config := types.Config{}
-	c.typesInfo = &types.Info{
+	c.types = &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
 		Defs:       make(map[*ast.Ident]types.Object),
 		Uses:       make(map[*ast.Ident]types.Object),
@@ -91,19 +80,9 @@ func (c *Compiler) analyze() {
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		Scopes:     make(map[ast.Node]*types.Scope),
 	}
-	if _, err := config.Check("", c.fileSet, files, c.typesInfo); err != nil {
+	if _, err := config.Check("", c.fileSet, c.files, c.types); err != nil {
 		fmt.Println(err)
 		return
-	}
-
-	// Functions
-	for _, file := range files {
-		for _, decl := range file.Decls {
-			switch decl := decl.(type) {
-			case *ast.FuncDecl:
-				c.funcs = append(c.funcs, c.analyzeFunc(decl))
-			}
-		}
 	}
 }
 
@@ -112,15 +91,21 @@ func (c *Compiler) analyze() {
 //
 
 func (c *Compiler) writef(format string, args ...interface{}) {
-	fmt.Fprintf(c.outCode, format, args...)
+	fmt.Fprintf(c.output, format, args...)
 }
 
 func (c *Compiler) write() {
+	// Preamble
 	c.writef("#include \"../preamble.hh\"\n")
 
+	// Function declarations
 	c.writef("\n\n")
-	for _, fun := range c.funcs {
-		c.writef("%s\n", fun.outDecl)
+	for _, file := range c.files {
+		for _, decl := range file.Decls {
+			if decl, ok := decl.(*ast.FuncDecl); ok {
+				c.writef("%s\n", c.funcCppDecl(decl))
+			}
+		}
 	}
 }
 
@@ -141,9 +126,12 @@ func (c *Compiler) init() {
 		}
 	}
 
-	// Initialize output buffers
-	c.outErrs = &bytes.Buffer{}
-	c.outCode = &bytes.Buffer{}
+	// Initialize maps
+	c.funcCppDecls = make(map[*ast.FuncDecl]string)
+
+	// Initialize buffers
+	c.errors = &bytes.Buffer{}
+	c.output = &bytes.Buffer{}
 }
 
 func (c *Compiler) compile() {
@@ -165,8 +153,8 @@ func main() {
 
 	// Print output
 	if c.errored() {
-		fmt.Println(c.outErrs)
+		fmt.Println(c.errors)
 	} else {
-		fmt.Println(c.outCode)
+		fmt.Println(c.output)
 	}
 }
