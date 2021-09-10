@@ -1,9 +1,10 @@
 package example
 
-func add(x, y int) int {
-	return x + y
-}
+//func add(x, y int) int {
+//  return x + y
+//}
 
 func main() {
-	println(add(2, getThree()))
+	print(42)
+	//print(add(2, getThree()))
 }

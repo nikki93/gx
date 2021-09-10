@@ -5,9 +5,9 @@
 // Print
 //
 
-inline void print(const char *s) {
-  std::printf("%s", s);
+inline void print(int val) {
+  std::printf("%d", val);
 }
-inline void println(const char *s) {
-  std::puts(s);
+inline void print(const char *val) {
+  std::printf("%s", val);
 }
