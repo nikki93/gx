@@ -140,8 +140,8 @@ func (c *Compiler) compile() {
 		return
 	}
 
-	// Write preamble
-	c.writef("#include \"preamble.hh\"\n")
+	// Write `#include`s
+	c.writef("#include \"prelude.hh\"\n")
 
 	// Write function declarations
 	c.writef("\n\n")
