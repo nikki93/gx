@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -9,6 +8,7 @@ import (
 	"go/types"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 )
 
 //
@@ -25,8 +25,8 @@ type Compiler struct {
 
 	funcCppDecls map[*ast.FuncDecl]string
 
-	errors *bytes.Buffer
-	output *bytes.Buffer
+	errors *strings.Builder
+	output *strings.Builder
 }
 
 func (c *Compiler) eprintf(pos token.Pos, format string, args ...interface{}) {
@@ -70,9 +70,9 @@ func (c *Compiler) compile() {
 	// Initialize maps
 	c.funcCppDecls = make(map[*ast.FuncDecl]string)
 
-	// Initialize buffers
-	c.errors = &bytes.Buffer{}
-	c.output = &bytes.Buffer{}
+	// Initialize builders
+	c.errors = &strings.Builder{}
+	c.output = &strings.Builder{}
 
 	// Parse
 	c.fileSet = token.NewFileSet()
