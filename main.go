@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+const debug = true
+
 //
 // Compiler
 //
@@ -23,13 +25,14 @@ type Compiler struct {
 	files   []*ast.File
 	types   *types.Info
 
+	typeCppNames map[types.Type]string // Should we use `typeutil.Map`?
 	funcCppDecls map[*ast.FuncDecl]string
 
 	errors *strings.Builder
 	output *strings.Builder
 }
 
-func (c *Compiler) eprintf(pos token.Pos, format string, args ...interface{}) {
+func (c *Compiler) errorf(pos token.Pos, format string, args ...interface{}) {
 	fmt.Fprintf(c.errors, "%s: ", c.fileSet.PositionFor(pos, true))
 	fmt.Fprintf(c.errors, format, args...)
 	fmt.Fprintln(c.errors)
@@ -43,12 +46,42 @@ func (c *Compiler) writef(format string, args ...interface{}) {
 	fmt.Fprintf(c.output, format, args...)
 }
 
+func (c *Compiler) typeCppName(typ types.Type) string {
+	if result, ok := c.typeCppNames[typ]; ok {
+		return result
+	} else {
+		result = typ.String()
+		c.typeCppNames[typ] = result
+		return result
+	}
+}
+
 func (c *Compiler) funcCppDecl(decl *ast.FuncDecl) string {
 	if result, ok := c.funcCppDecls[decl]; ok {
 		return result
 	} else {
-		//signature := c.types.Defs[funcDecl.Name].Type().(*types.Signature)
-		result = "void foo();"
+		signature := c.types.Defs[decl.Name].Type().(*types.Signature)
+		results := signature.Results()
+		if results.Len() > 1 {
+			c.errorf(decl.Type.Results.Pos(), "multiple return values not supported")
+		}
+
+		builder := &strings.Builder{}
+
+		// Return type
+		if results.Len() == 0 {
+			builder.WriteString("void ")
+		} else {
+			builder.WriteString(c.typeCppName(results.At(0).Type()))
+			builder.WriteByte(' ')
+		}
+
+		// Name
+		builder.WriteString(decl.Name.String())
+
+		// Parameters
+
+		result = builder.String()
 		c.funcCppDecls[decl] = result
 		return result
 	}
@@ -68,6 +101,7 @@ func (c *Compiler) compile() {
 	}
 
 	// Initialize maps
+	c.typeCppNames = make(map[types.Type]string)
 	c.funcCppDecls = make(map[*ast.FuncDecl]string)
 
 	// Initialize builders
@@ -107,9 +141,18 @@ func (c *Compiler) compile() {
 	for _, file := range c.files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
-				c.writef("%s\n", c.funcCppDecl(decl))
+				c.writef("%s;\n", c.funcCppDecl(decl))
 			}
 		}
+	}
+
+	// Debug
+	if debug {
+		fmt.Println("types: ")
+		for typ := range c.typeCppNames {
+			fmt.Printf("  %s\n", typ.String())
+		}
+		fmt.Print("\n\n")
 	}
 }
 
