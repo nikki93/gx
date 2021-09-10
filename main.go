@@ -25,8 +25,8 @@ type Compiler struct {
 	files   []*ast.File
 	types   *types.Info
 
-	typeCppNames map[types.Type]string // Should we use `typeutil.Map`?
-	funcCppDecls map[*ast.FuncDecl]string
+	cppTypeNames map[types.Type]string // Should we use `typeutil.Map` (equivalence-based keys)?
+	cppFuncDecls map[*ast.FuncDecl]string
 
 	errors *strings.Builder
 	output *strings.Builder
@@ -46,18 +46,18 @@ func (c *Compiler) writef(format string, args ...interface{}) {
 	fmt.Fprintf(c.output, format, args...)
 }
 
-func (c *Compiler) typeCppName(typ types.Type) string {
-	if result, ok := c.typeCppNames[typ]; ok {
+func (c *Compiler) cppTypeName(typ types.Type) string {
+	if result, ok := c.cppTypeNames[typ]; ok {
 		return result
 	} else {
 		result = typ.String()
-		c.typeCppNames[typ] = result
+		c.cppTypeNames[typ] = result
 		return result
 	}
 }
 
-func (c *Compiler) funcCppDecl(decl *ast.FuncDecl) string {
-	if result, ok := c.funcCppDecls[decl]; ok {
+func (c *Compiler) cppFuncDecl(decl *ast.FuncDecl) string {
+	if result, ok := c.cppFuncDecls[decl]; ok {
 		return result
 	} else {
 		signature := c.types.Defs[decl.Name].Type().(*types.Signature)
@@ -72,7 +72,7 @@ func (c *Compiler) funcCppDecl(decl *ast.FuncDecl) string {
 		if results.Len() == 0 {
 			builder.WriteString("void ")
 		} else {
-			builder.WriteString(c.typeCppName(results.At(0).Type()))
+			builder.WriteString(c.cppTypeName(results.At(0).Type()))
 			builder.WriteByte(' ')
 		}
 
@@ -82,7 +82,7 @@ func (c *Compiler) funcCppDecl(decl *ast.FuncDecl) string {
 		// Parameters
 
 		result = builder.String()
-		c.funcCppDecls[decl] = result
+		c.cppFuncDecls[decl] = result
 		return result
 	}
 }
@@ -101,8 +101,8 @@ func (c *Compiler) compile() {
 	}
 
 	// Initialize maps
-	c.typeCppNames = make(map[types.Type]string)
-	c.funcCppDecls = make(map[*ast.FuncDecl]string)
+	c.cppTypeNames = make(map[types.Type]string)
+	c.cppFuncDecls = make(map[*ast.FuncDecl]string)
 
 	// Initialize builders
 	c.errors = &strings.Builder{}
@@ -141,7 +141,7 @@ func (c *Compiler) compile() {
 	for _, file := range c.files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
-				c.writef("%s;\n", c.funcCppDecl(decl))
+				c.writef("%s;\n", c.cppFuncDecl(decl))
 			}
 		}
 	}
@@ -149,7 +149,7 @@ func (c *Compiler) compile() {
 	// Debug
 	if debug {
 		fmt.Println("types: ")
-		for typ := range c.typeCppNames {
+		for typ := range c.cppTypeNames {
 			fmt.Printf("  %s\n", typ.String())
 		}
 		fmt.Print("\n\n")
