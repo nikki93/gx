@@ -26,8 +26,8 @@ type Compiler struct {
 	files   []*ast.File
 	types   *types.Info
 
-	cppTypeNames map[types.Type]string // Should we use `typeutil.Map` (equivalence-based keys)?
-	cppFuncDecls map[*ast.FuncDecl]string
+	genTypeNames map[types.Type]string // Should we use `typeutil.Map` (equivalence-based keys)?
+	genFuncDecls map[*ast.FuncDecl]string
 
 	errors *strings.Builder
 	output *strings.Builder
@@ -47,18 +47,18 @@ func (c *Compiler) writef(format string, args ...interface{}) {
 	fmt.Fprintf(c.output, format, args...)
 }
 
-func (c *Compiler) cppTypeName(typ types.Type) string {
-	if result, ok := c.cppTypeNames[typ]; ok {
+func (c *Compiler) genTypeName(typ types.Type) string {
+	if result, ok := c.genTypeNames[typ]; ok {
 		return result
 	} else {
 		result = typ.String()
-		c.cppTypeNames[typ] = result
+		c.genTypeNames[typ] = result
 		return result
 	}
 }
 
-func (c *Compiler) cppFuncDecl(decl *ast.FuncDecl) string {
-	if result, ok := c.cppFuncDecls[decl]; ok {
+func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
+	if result, ok := c.genFuncDecls[decl]; ok {
 		return result
 	} else {
 		signature := c.types.Defs[decl.Name].Type().(*types.Signature)
@@ -77,7 +77,7 @@ func (c *Compiler) cppFuncDecl(decl *ast.FuncDecl) string {
 				builder.WriteString("void ")
 			}
 		} else {
-			builder.WriteString(c.cppTypeName(results.At(0).Type()))
+			builder.WriteString(c.genTypeName(results.At(0).Type()))
 			builder.WriteByte(' ')
 		}
 
@@ -89,9 +89,12 @@ func (c *Compiler) cppFuncDecl(decl *ast.FuncDecl) string {
 		builder.WriteByte(')')
 
 		result = builder.String()
-		c.cppFuncDecls[decl] = result
+		c.genFuncDecls[decl] = result
 		return result
 	}
+}
+
+func (c *Compiler) writeFuncBody(decl *ast.FuncDecl) {
 }
 
 func (c *Compiler) compile() {
@@ -108,8 +111,8 @@ func (c *Compiler) compile() {
 	}
 
 	// Initialize maps
-	c.cppTypeNames = make(map[types.Type]string)
-	c.cppFuncDecls = make(map[*ast.FuncDecl]string)
+	c.genTypeNames = make(map[types.Type]string)
+	c.genFuncDecls = make(map[*ast.FuncDecl]string)
 
 	// Initialize builders
 	c.errors = &strings.Builder{}
@@ -140,15 +143,27 @@ func (c *Compiler) compile() {
 		return
 	}
 
-	// Write `#include`s
+	// `#include`s
 	c.writef("#include \"prelude.hh\"\n")
 
-	// Write function declarations
+	// Function declarations
 	c.writef("\n\n")
 	for _, file := range c.files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
-				c.writef("%s;\n", c.cppFuncDecl(decl))
+				c.writef("%s;\n", c.genFuncDecl(decl))
+			}
+		}
+	}
+
+	// Function bodies
+	c.writef("\n\n")
+	for _, file := range c.files {
+		for _, decl := range file.Decls {
+			if decl, ok := decl.(*ast.FuncDecl); ok {
+				c.writef("%s {\n", c.genFuncDecl(decl))
+				c.writeFuncBody(decl)
+				c.writef("}\n")
 			}
 		}
 	}
@@ -156,7 +171,7 @@ func (c *Compiler) compile() {
 	// Debug
 	if debug {
 		fmt.Print("// types:")
-		for typ := range c.cppTypeNames {
+		for typ := range c.genTypeNames {
 			fmt.Printf(" %s", typ.String())
 		}
 		fmt.Print("\n\n")
