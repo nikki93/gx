@@ -5,5 +5,5 @@ func add(x, y int) int {
 }
 
 func main() {
-	println(add(2, other()))
+	println(add(2, getThree()))
 }

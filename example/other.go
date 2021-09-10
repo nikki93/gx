@@ -1,5 +1,5 @@
 package example
 
-func other() int {
+func getThree() int {
 	return 3
 }
