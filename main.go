@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io/fs"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -70,7 +71,11 @@ func (c *Compiler) cppFuncDecl(decl *ast.FuncDecl) string {
 
 		// Return type
 		if results.Len() == 0 {
-			builder.WriteString("void ")
+			if decl.Name.String() == "main" && decl.Recv == nil {
+				builder.WriteString("int ")
+			} else {
+				builder.WriteString("void ")
+			}
 		} else {
 			builder.WriteString(c.cppTypeName(results.At(0).Type()))
 			builder.WriteByte(' ')
@@ -80,6 +85,8 @@ func (c *Compiler) cppFuncDecl(decl *ast.FuncDecl) string {
 		builder.WriteString(decl.Name.String())
 
 		// Parameters
+		builder.WriteByte('(')
+		builder.WriteByte(')')
 
 		result = builder.String()
 		c.cppFuncDecls[decl] = result
@@ -134,7 +141,7 @@ func (c *Compiler) compile() {
 	}
 
 	// Write preamble
-	c.writef("#include \"../preamble.hh\"\n")
+	c.writef("#include \"preamble.hh\"\n")
 
 	// Write function declarations
 	c.writef("\n\n")
@@ -148,9 +155,9 @@ func (c *Compiler) compile() {
 
 	// Debug
 	if debug {
-		fmt.Println("types: ")
+		fmt.Print("// types:")
 		for typ := range c.cppTypeNames {
-			fmt.Printf("  %s\n", typ.String())
+			fmt.Printf(" %s", typ.String())
 		}
 		fmt.Print("\n\n")
 	}
@@ -170,5 +177,6 @@ func main() {
 		fmt.Println(c.errors)
 	} else {
 		fmt.Println(c.output)
+		ioutil.WriteFile("output.cc", []byte(c.output.String()), fs.ModePerm)
 	}
 }
