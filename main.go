@@ -92,6 +92,15 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 
 		// Parameters
 		builder.WriteByte('(')
+		for i, nParams := 0, signature.Params().Len(); i < nParams; i++ {
+			param := signature.Params().At(i)
+			builder.WriteString(c.genTypeName(param.Type())) // TODO: Factor out into `c.genVarDecl`
+			builder.WriteByte(' ')
+			builder.WriteString(param.Name())
+			if i < nParams-1 {
+				builder.WriteString(", ")
+			}
+		}
 		builder.WriteByte(')')
 
 		result = builder.String()
@@ -113,6 +122,21 @@ func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 	}
 }
 
+func (c *Compiler) writeBinaryExpr(bin *ast.BinaryExpr) {
+	c.writeExpr(bin.X)
+	c.writef(" ")
+	switch op := bin.Op; op {
+	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM,
+		token.AND, token.OR, token.XOR, token.SHL, token.SHR,
+		token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN:
+		c.writef("%s", op.String())
+	default:
+		c.errorf(bin.OpPos, "unsupported operator")
+	}
+	c.writef(" ")
+	c.writeExpr(bin.Y)
+}
+
 func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 	c.writeExpr(call.Fun)
 	c.writef("(")
@@ -131,6 +155,8 @@ func (c *Compiler) writeExpr(expr ast.Expr) {
 		c.writeIdent(expr)
 	case *ast.BasicLit:
 		c.writeBasicLit(expr)
+	case *ast.BinaryExpr:
+		c.writeBinaryExpr(expr)
 	case *ast.CallExpr:
 		c.writeCallExpr(expr)
 	default:

@@ -1,8 +1,8 @@
 package example
 
-//func add(x, y int) int {
-//  return x + y
-//}
+func add(x, y int) int {
+	return x + y
+}
 
 func main() {
 	print("three: ")
@@ -10,5 +10,6 @@ func main() {
 	print("\n")
 	print(42)
 	print("\n")
-	//print(add(2, getThree()))
+	print(add(2, getThree()))
+	print("\n")
 }
