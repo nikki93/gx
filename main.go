@@ -195,13 +195,15 @@ func (c *Compiler) compile() {
 		}
 	}
 
-	// Function bodies
+	// Function definitions
 	c.writef("\n\n")
 	for _, file := range c.files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
-				c.writef("%s ", c.genFuncDecl(decl))
-				c.writeBlockStmt(decl.Body)
+				if decl.Body != nil {
+					c.writef("%s ", c.genFuncDecl(decl))
+					c.writeBlockStmt(decl.Body)
+				}
 			}
 		}
 	}
