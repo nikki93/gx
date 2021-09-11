@@ -6,6 +6,8 @@ package example
 
 func main() {
 	print(14)
+	print("\n")
 	print(42)
+	print("\n")
 	//print(add(2, getThree()))
 }

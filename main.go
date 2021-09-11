@@ -100,9 +100,39 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 	}
 }
 
+func (c *Compiler) writeIdent(ident *ast.Ident) {
+	c.writef("%s", ident.Name)
+}
+
+func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
+	switch lit.Kind {
+	case token.INT, token.STRING:
+		c.writef("%s", lit.Value)
+	default:
+		c.errorf(lit.Pos(), "unsupported literal kind")
+	}
+}
+
+func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
+	c.writeExpr(call.Fun)
+	c.writef("(")
+	for i, arg := range call.Args {
+		c.writeExpr(arg)
+		if i != len(call.Args)-1 {
+			c.writef(", ")
+		}
+	}
+	c.writef(")")
+}
+
 func (c *Compiler) writeExpr(expr ast.Expr) {
 	switch expr := expr.(type) {
+	case *ast.Ident:
+		c.writeIdent(expr)
+	case *ast.BasicLit:
+		c.writeBasicLit(expr)
 	case *ast.CallExpr:
+		c.writeCallExpr(expr)
 	default:
 		c.errorf(expr.Pos(), "unsupported expression type")
 	}
