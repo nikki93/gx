@@ -1,5 +1,5 @@
 package example
 
-//func getThree() int {
-//  return 3
-//}
+func getThree() int {
+	return 3
+}

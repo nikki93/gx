@@ -118,7 +118,7 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 	c.writef("(")
 	for i, arg := range call.Args {
 		c.writeExpr(arg)
-		if i != len(call.Args)-1 {
+		if i < len(call.Args)-1 {
 			c.writef(", ")
 		}
 	}
@@ -143,10 +143,22 @@ func (c *Compiler) writeExprStmt(exprStmt *ast.ExprStmt) {
 	c.writef(";\n")
 }
 
+func (c *Compiler) writeReturnStmt(retStmt *ast.ReturnStmt) {
+	if len(retStmt.Results) > 0 {
+		c.writef("return ")
+		c.writeExpr(retStmt.Results[0])
+		c.writef(";\n")
+	} else {
+		c.writef("return;\n")
+	}
+}
+
 func (c *Compiler) writeStmt(stmt ast.Stmt) {
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
 		c.writeExprStmt(stmt)
+	case *ast.ReturnStmt:
+		c.writeReturnStmt(stmt)
 	default:
 		c.errorf(stmt.Pos(), "unsupported statement type")
 	}
@@ -226,11 +238,12 @@ func (c *Compiler) compile() {
 	}
 
 	// Function definitions
-	c.writef("\n\n")
+	c.writef("\n")
 	for _, file := range c.files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
 				if decl.Body != nil {
+					c.writef("\n")
 					c.writef("%s ", c.genFuncDecl(decl))
 					c.writeBlockStmt(decl.Body)
 				}
