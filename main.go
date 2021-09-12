@@ -44,22 +44,13 @@ func (c *Compiler) errored() bool {
 	return c.errors.Len() != 0
 }
 
-func (c *Compiler) writeIndent() {
+func (c *Compiler) write(s string) {
 	if peek := c.output.String(); len(peek) > 0 && peek[len(peek)-1] == '\n' {
 		for i := 0; i < 2*c.indent; i++ {
 			c.output.WriteByte(' ')
 		}
 	}
-}
-
-func (c *Compiler) write(s string) {
-	c.writeIndent()
 	c.output.WriteString(s)
-}
-
-func (c *Compiler) writef(format string, args ...interface{}) {
-	c.writeIndent()
-	fmt.Fprintf(c.output, format, args...)
 }
 
 func (c *Compiler) genTypeName(typ types.Type) string {
@@ -267,7 +258,8 @@ func (c *Compiler) compile() {
 	for _, file := range c.files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
-				c.writef("%s;\n", c.genFuncDecl(decl))
+				c.write(c.genFuncDecl(decl))
+				c.write(";\n")
 			}
 		}
 	}
@@ -278,7 +270,9 @@ func (c *Compiler) compile() {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
 				if decl.Body != nil {
-					c.writef("\n%s ", c.genFuncDecl(decl))
+					c.write("\n")
+					c.write(c.genFuncDecl(decl))
+					c.write(" ")
 					c.writeBlockStmt(decl.Body)
 				}
 			}
