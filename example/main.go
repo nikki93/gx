@@ -5,11 +5,5 @@ func add(x, y int) int {
 }
 
 func main() {
-	print("three: ")
-	print(getThree())
-	print("\n")
-	print(42)
-	print("\n")
-	print(add(2, getThree()))
-	print("\n")
+	print("2 + 3 = ", add(2, getThree()), "\n")
 }
