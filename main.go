@@ -44,12 +44,21 @@ func (c *Compiler) errored() bool {
 	return c.errors.Len() != 0
 }
 
-func (c *Compiler) writef(format string, args ...interface{}) {
+func (c *Compiler) writeIndent() {
 	if peek := c.output.String(); len(peek) > 0 && peek[len(peek)-1] == '\n' {
 		for i := 0; i < 2*c.indent; i++ {
 			c.output.WriteByte(' ')
 		}
 	}
+}
+
+func (c *Compiler) write(s string) {
+	c.writeIndent()
+	c.output.WriteString(s)
+}
+
+func (c *Compiler) writef(format string, args ...interface{}) {
+	c.writeIndent()
 	fmt.Fprintf(c.output, format, args...)
 }
 
@@ -110,13 +119,13 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 }
 
 func (c *Compiler) writeIdent(ident *ast.Ident) {
-	c.writef("%s", ident.Name)
+	c.write(ident.Name)
 }
 
 func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 	switch lit.Kind {
 	case token.INT, token.STRING:
-		c.writef("%s", lit.Value)
+		c.write(lit.Value)
 	default:
 		c.errorf(lit.Pos(), "unsupported literal kind")
 	}
@@ -124,29 +133,29 @@ func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 
 func (c *Compiler) writeBinaryExpr(bin *ast.BinaryExpr) {
 	c.writeExpr(bin.X)
-	c.writef(" ")
+	c.write(" ")
 	switch op := bin.Op; op {
 	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM,
 		token.AND, token.OR, token.XOR, token.SHL, token.SHR,
 		token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN:
-		c.writef("%s", op.String())
+		c.write(op.String())
 	default:
 		c.errorf(bin.OpPos, "unsupported operator")
 	}
-	c.writef(" ")
+	c.write(" ")
 	c.writeExpr(bin.Y)
 }
 
 func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 	c.writeExpr(call.Fun)
-	c.writef("(")
+	c.write("(")
 	for i, arg := range call.Args {
 		c.writeExpr(arg)
 		if i < len(call.Args)-1 {
-			c.writef(", ")
+			c.write(", ")
 		}
 	}
-	c.writef(")")
+	c.write(")")
 }
 
 func (c *Compiler) writeExpr(expr ast.Expr) {
@@ -166,16 +175,16 @@ func (c *Compiler) writeExpr(expr ast.Expr) {
 
 func (c *Compiler) writeExprStmt(exprStmt *ast.ExprStmt) {
 	c.writeExpr(exprStmt.X)
-	c.writef(";\n")
+	c.write(";\n")
 }
 
 func (c *Compiler) writeReturnStmt(retStmt *ast.ReturnStmt) {
 	if len(retStmt.Results) > 0 {
-		c.writef("return ")
+		c.write("return ")
 		c.writeExpr(retStmt.Results[0])
-		c.writef(";\n")
+		c.write(";\n")
 	} else {
-		c.writef("return;\n")
+		c.write("return;\n")
 	}
 }
 
@@ -197,11 +206,11 @@ func (c *Compiler) writeStmtList(list []ast.Stmt) {
 }
 
 func (c *Compiler) writeBlockStmt(block *ast.BlockStmt) {
-	c.writef("{\n")
+	c.write("{\n")
 	c.indent++
 	c.writeStmtList(block.List)
 	c.indent--
-	c.writef("}\n")
+	c.write("}\n")
 }
 
 func (c *Compiler) compile() {
@@ -251,10 +260,10 @@ func (c *Compiler) compile() {
 	}
 
 	// `#include`s
-	c.writef("#include \"prelude.hh\"\n")
+	c.write("#include \"prelude.hh\"\n")
 
 	// Function declarations
-	c.writef("\n\n")
+	c.write("\n\n")
 	for _, file := range c.files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
@@ -264,13 +273,12 @@ func (c *Compiler) compile() {
 	}
 
 	// Function definitions
-	c.writef("\n")
+	c.write("\n")
 	for _, file := range c.files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
 				if decl.Body != nil {
-					c.writef("\n")
-					c.writef("%s ", c.genFuncDecl(decl))
+					c.writef("\n%s ", c.genFuncDecl(decl))
 					c.writeBlockStmt(decl.Body)
 				}
 			}
