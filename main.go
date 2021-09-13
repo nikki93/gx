@@ -93,13 +93,13 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 		// Parameters
 		builder.WriteByte('(')
 		for i, nParams := 0, signature.Params().Len(); i < nParams; i++ {
+			if i > 0 {
+				builder.WriteString(", ")
+			}
 			param := signature.Params().At(i)
 			builder.WriteString(c.genTypeName(param.Type())) // TODO: Factor out into `c.genVarDecl`
 			builder.WriteByte(' ')
 			builder.WriteString(param.Name())
-			if i < nParams-1 {
-				builder.WriteString(", ")
-			}
 		}
 		builder.WriteByte(')')
 
@@ -141,10 +141,10 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 	c.writeExpr(call.Fun)
 	c.write("(")
 	for i, arg := range call.Args {
-		c.writeExpr(arg)
-		if i < len(call.Args)-1 {
+		if i > 0 {
 			c.write(", ")
 		}
+		c.writeExpr(arg)
 	}
 	c.write(")")
 }
