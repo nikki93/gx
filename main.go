@@ -126,7 +126,8 @@ func (c *Compiler) writeBinaryExpr(bin *ast.BinaryExpr) {
 	c.writeExpr(bin.X)
 	c.write(" ")
 	switch op := bin.Op; op {
-	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM,
+	case token.EQL, token.LSS, token.LEQ, token.GTR, token.GEQ,
+		token.ADD, token.SUB, token.MUL, token.QUO, token.REM,
 		token.AND, token.OR, token.XOR, token.SHL, token.SHR,
 		token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN:
 		c.write(op.String())
