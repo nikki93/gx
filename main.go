@@ -133,7 +133,7 @@ func (c *Compiler) writeUnaryExpr(bin *ast.UnaryExpr) {
 	case token.ADD, token.SUB, token.NOT:
 		c.write(op.String())
 	default:
-		c.errorf(bin.OpPos, "unsupported operator")
+		c.errorf(bin.OpPos, "unsupported unary operator")
 	}
 	c.writeExpr(bin.X)
 }
@@ -148,7 +148,7 @@ func (c *Compiler) writeBinaryExpr(bin *ast.BinaryExpr) {
 		token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN:
 		c.write(op.String())
 	default:
-		c.errorf(bin.OpPos, "unsupported operator")
+		c.errorf(bin.OpPos, "unsupported binary operator")
 	}
 	c.write(" ")
 	c.writeExpr(bin.Y)
