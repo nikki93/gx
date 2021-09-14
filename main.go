@@ -180,6 +180,14 @@ func (c *Compiler) writeReturnStmt(retStmt *ast.ReturnStmt) {
 	}
 }
 
+func (c *Compiler) writeBlockStmt(block *ast.BlockStmt) {
+	c.write("{\n")
+	c.indent++
+	c.writeStmtList(block.List)
+	c.indent--
+	c.write("}")
+}
+
 func (c *Compiler) writeIfStmt(ifStmt *ast.IfStmt) {
 	c.write("if (")
 	if ifStmt.Init != nil {
@@ -215,14 +223,6 @@ func (c *Compiler) writeStmtList(list []ast.Stmt) {
 		c.writeStmt(stmt)
 		c.write("\n")
 	}
-}
-
-func (c *Compiler) writeBlockStmt(block *ast.BlockStmt) {
-	c.write("{\n")
-	c.indent++
-	c.writeStmtList(block.List)
-	c.indent--
-	c.write("}")
 }
 
 func (c *Compiler) compile() {
