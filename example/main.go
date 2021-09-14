@@ -1,18 +1,13 @@
-package example
+package main
 
-func add(x, y int) int {
-	return x + y
-}
-
-func sideEffect() bool {
-	print("side effect!\n")
-	return true
+func fib(n int) int {
+	if n <= 1 {
+		return n
+	} else {
+		return fib(n-1) + fib(n-2)
+	}
 }
 
 func main() {
-	if sideEffect(); true {
-		print("true\n")
-	}
-	assert(1 == 1)
-	assert(add(2, 3) == 5)
+	assert(fib(6) == 8)
 }

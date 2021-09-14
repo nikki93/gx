@@ -23,3 +23,9 @@ void print(A &a, B &&b, Args &&...args) {
   print(b);
   (print(args), ...);
 }
+
+template<typename ...Args>
+void println(Args &&...args) {
+  print(args...);
+  print("\n");
+}

@@ -1,9 +1,9 @@
-package example
+package main
 
 func assert(val bool) {
 	if val {
-		print("ok\n")
+		println("ok")
 	} else {
-		print("not ok!\n")
+		println("not ok")
 	}
 }
