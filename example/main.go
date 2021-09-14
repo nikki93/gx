@@ -12,6 +12,12 @@ func testFib() {
 	assert(fib(6) == 8)
 }
 
+func testUnary() {
+	assert(-(3) == -3)
+	assert(+(3) == 3)
+}
+
 func main() {
 	testFib()
+	testUnary()
 }

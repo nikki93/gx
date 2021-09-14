@@ -122,6 +122,22 @@ func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 	}
 }
 
+func (c *Compiler) writeParenExpr(bin *ast.ParenExpr) {
+	c.write("(")
+	c.writeExpr(bin.X)
+	c.write(")")
+}
+
+func (c *Compiler) writeUnaryExpr(bin *ast.UnaryExpr) {
+	switch op := bin.Op; op {
+	case token.ADD, token.SUB, token.NOT:
+		c.write(op.String())
+	default:
+		c.errorf(bin.OpPos, "unsupported operator")
+	}
+	c.writeExpr(bin.X)
+}
+
 func (c *Compiler) writeBinaryExpr(bin *ast.BinaryExpr) {
 	c.writeExpr(bin.X)
 	c.write(" ")
@@ -156,6 +172,10 @@ func (c *Compiler) writeExpr(expr ast.Expr) {
 		c.writeIdent(expr)
 	case *ast.BasicLit:
 		c.writeBasicLit(expr)
+	case *ast.ParenExpr:
+		c.writeParenExpr(expr)
+	case *ast.UnaryExpr:
+		c.writeUnaryExpr(expr)
 	case *ast.BinaryExpr:
 		c.writeBinaryExpr(expr)
 	case *ast.CallExpr:
