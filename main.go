@@ -167,16 +167,30 @@ func (c *Compiler) writeExpr(expr ast.Expr) {
 
 func (c *Compiler) writeExprStmt(exprStmt *ast.ExprStmt) {
 	c.writeExpr(exprStmt.X)
-	c.write(";\n")
+	c.write(";")
 }
 
 func (c *Compiler) writeReturnStmt(retStmt *ast.ReturnStmt) {
 	if len(retStmt.Results) > 0 {
 		c.write("return ")
 		c.writeExpr(retStmt.Results[0])
-		c.write(";\n")
+		c.write(";")
 	} else {
-		c.write("return;\n")
+		c.write("return;")
+	}
+}
+
+func (c *Compiler) writeIfStmt(ifStmt *ast.IfStmt) {
+	c.write("if (")
+	if ifStmt.Init != nil {
+		c.errorf(ifStmt.Init.Pos(), "if statement initializer unsupported")
+	}
+	c.writeExpr(ifStmt.Cond)
+	c.write(") ")
+	c.writeStmt(ifStmt.Body)
+	if ifStmt.Else != nil {
+		c.write(" else ")
+		c.writeStmt(ifStmt.Else)
 	}
 }
 
@@ -186,6 +200,10 @@ func (c *Compiler) writeStmt(stmt ast.Stmt) {
 		c.writeExprStmt(stmt)
 	case *ast.ReturnStmt:
 		c.writeReturnStmt(stmt)
+	case *ast.BlockStmt:
+		c.writeBlockStmt(stmt)
+	case *ast.IfStmt:
+		c.writeIfStmt(stmt)
 	default:
 		c.errorf(stmt.Pos(), "unsupported statement type")
 	}
@@ -194,6 +212,7 @@ func (c *Compiler) writeStmt(stmt ast.Stmt) {
 func (c *Compiler) writeStmtList(list []ast.Stmt) {
 	for _, stmt := range list {
 		c.writeStmt(stmt)
+		c.write("\n")
 	}
 }
 
@@ -202,7 +221,7 @@ func (c *Compiler) writeBlockStmt(block *ast.BlockStmt) {
 	c.indent++
 	c.writeStmtList(block.List)
 	c.indent--
-	c.write("}\n")
+	c.write("}")
 }
 
 func (c *Compiler) compile() {
@@ -275,6 +294,7 @@ func (c *Compiler) compile() {
 					c.write(c.genFuncDecl(decl))
 					c.write(" ")
 					c.writeBlockStmt(decl.Body)
+					c.write("\n")
 				}
 			}
 		}
