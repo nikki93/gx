@@ -250,7 +250,7 @@ func (c *Compiler) compile() {
 	if len(c.filePaths) == 0 && c.directoryPath != "" {
 		fileInfos, err := ioutil.ReadDir(c.directoryPath)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintf(c.errors, "%s\n", err)
 			return
 		}
 		for _, fileInfo := range fileInfos {
@@ -271,7 +271,7 @@ func (c *Compiler) compile() {
 	for _, filePath := range c.filePaths {
 		file, err := parser.ParseFile(c.fileSet, filePath, nil, 0)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintf(c.errors, "%s\n", err)
 			return
 		}
 		c.files = append(c.files, file)
@@ -287,7 +287,7 @@ func (c *Compiler) compile() {
 		Scopes:     make(map[ast.Node]*types.Scope),
 	}
 	if _, err := (&types.Config{}).Check("", c.fileSet, c.files, c.types); err != nil {
-		fmt.Println(err)
+		fmt.Fprintf(c.errors, "%s\n", err)
 		return
 	}
 
