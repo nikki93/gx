@@ -8,6 +8,10 @@ func fib(n int) int {
 	}
 }
 
-func main() {
+func testFib() {
 	assert(fib(6) == 8)
+}
+
+func main() {
+	testFib()
 }
