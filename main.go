@@ -183,7 +183,8 @@ func (c *Compiler) writeReturnStmt(retStmt *ast.ReturnStmt) {
 func (c *Compiler) writeIfStmt(ifStmt *ast.IfStmt) {
 	c.write("if (")
 	if ifStmt.Init != nil {
-		c.errorf(ifStmt.Init.Pos(), "if statement initializer unsupported")
+		c.writeStmt(ifStmt.Init)
+		c.write(" ")
 	}
 	c.writeExpr(ifStmt.Cond)
 	c.write(") ")
