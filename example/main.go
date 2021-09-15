@@ -1,9 +1,5 @@
 package main
 
-func kek() (int, int) {
-	return 2, 3
-}
-
 func fib(n int) int {
 	if n <= 1 {
 		return n
@@ -30,6 +26,10 @@ func testVariables() {
 	x = x + 1
 	assert(y == 6)
 	assert(x == 4)
+	y += 2
+	x += 1
+	assert(y == 8)
+	assert(x == 5)
 }
 
 func main() {

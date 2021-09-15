@@ -144,8 +144,7 @@ func (c *Compiler) writeBinaryExpr(bin *ast.BinaryExpr) {
 	switch op := bin.Op; op {
 	case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ,
 		token.ADD, token.SUB, token.MUL, token.QUO, token.REM,
-		token.AND, token.OR, token.XOR, token.SHL, token.SHR,
-		token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN:
+		token.AND, token.OR, token.XOR, token.SHL, token.SHR:
 		c.write(op.String())
 	default:
 		c.errorf(bin.OpPos, "unsupported binary operator")
@@ -199,7 +198,18 @@ func (c *Compiler) writeAssignStmt(assignStmt *ast.AssignStmt) {
 		c.write("auto ")
 	}
 	c.writeExpr(assignStmt.Lhs[0])
-	c.write(" = ")
+	c.write(" ")
+	switch op := assignStmt.Tok; op {
+	case token.DEFINE:
+		c.write("=")
+	case token.ASSIGN,
+		token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN,
+		token.AND_ASSIGN, token.OR_ASSIGN, token.XOR_ASSIGN, token.SHL_ASSIGN, token.SHR_ASSIGN:
+		c.write(op.String())
+	default:
+		c.errorf(assignStmt.TokPos, "unsupported assignment operator")
+	}
+	c.write(" ")
 	c.writeExpr(assignStmt.Rhs[0])
 	c.write(";")
 }
