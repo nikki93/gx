@@ -190,6 +190,20 @@ func (c *Compiler) writeExprStmt(exprStmt *ast.ExprStmt) {
 	c.write(";")
 }
 
+func (c *Compiler) writeAssignStmt(assignStmt *ast.AssignStmt) {
+	if len(assignStmt.Lhs) != 1 {
+		c.errorf(assignStmt.Pos(), "multi-value assignment unsupported")
+		return
+	}
+	if assignStmt.Tok == token.DEFINE {
+		c.write("auto ")
+	}
+	c.writeExpr(assignStmt.Lhs[0])
+	c.write(" = ")
+	c.writeExpr(assignStmt.Rhs[0])
+	c.write(";")
+}
+
 func (c *Compiler) writeReturnStmt(retStmt *ast.ReturnStmt) {
 	if len(retStmt.Results) > 0 {
 		c.write("return ")
@@ -227,6 +241,8 @@ func (c *Compiler) writeStmt(stmt ast.Stmt) {
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
 		c.writeExprStmt(stmt)
+	case *ast.AssignStmt:
+		c.writeAssignStmt(stmt)
 	case *ast.ReturnStmt:
 		c.writeReturnStmt(stmt)
 	case *ast.BlockStmt:

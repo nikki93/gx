@@ -17,7 +17,19 @@ func testUnary() {
 	assert(+(3) == 3)
 }
 
+func testVariables() {
+	x := 3
+	y := 4
+	assert(x == 3)
+	assert(y == 4)
+	y = y + 2
+	x = x + 1
+	assert(y == 6)
+	assert(x == 4)
+}
+
 func main() {
 	testFib()
 	testUnary()
+	testVariables()
 }
