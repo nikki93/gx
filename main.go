@@ -205,6 +205,10 @@ func (c *Compiler) writeAssignStmt(assignStmt *ast.AssignStmt) {
 }
 
 func (c *Compiler) writeReturnStmt(retStmt *ast.ReturnStmt) {
+	if len(retStmt.Results) > 1 {
+		c.errorf(retStmt.Results[0].Pos(), "multiple return values not supported")
+		return
+	}
 	if len(retStmt.Results) > 0 {
 		c.write("return ")
 		c.writeExpr(retStmt.Results[0])

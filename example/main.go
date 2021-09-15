@@ -1,5 +1,9 @@
 package main
 
+func kek() (int, int) {
+	return 2, 3
+}
+
 func fib(n int) int {
 	if n <= 1 {
 		return n
