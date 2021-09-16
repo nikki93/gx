@@ -184,14 +184,15 @@ func (c *Compiler) writeExpr(expr ast.Expr) {
 	}
 }
 
-func (c *Compiler) writeExprStmt(exprStmt *ast.ExprStmt) {
+func (c *Compiler) writeExprStmt(exprStmt *ast.ExprStmt) bool {
 	c.writeExpr(exprStmt.X)
+	return true
 }
 
-func (c *Compiler) writeAssignStmt(assignStmt *ast.AssignStmt) {
+func (c *Compiler) writeAssignStmt(assignStmt *ast.AssignStmt) bool {
 	if len(assignStmt.Lhs) != 1 {
 		c.errorf(assignStmt.Pos(), "multi-value assignment unsupported")
-		return
+		return true
 	}
 	if assignStmt.Tok == token.DEFINE {
 		c.write("auto ")
@@ -210,12 +211,13 @@ func (c *Compiler) writeAssignStmt(assignStmt *ast.AssignStmt) {
 	}
 	c.write(" ")
 	c.writeExpr(assignStmt.Rhs[0])
+	return true
 }
 
-func (c *Compiler) writeReturnStmt(retStmt *ast.ReturnStmt) {
+func (c *Compiler) writeReturnStmt(retStmt *ast.ReturnStmt) bool {
 	if len(retStmt.Results) > 1 {
 		c.errorf(retStmt.Results[0].Pos(), "multiple return values not supported")
-		return
+		return true
 	}
 	if len(retStmt.Results) > 0 {
 		c.write("return ")
@@ -223,26 +225,29 @@ func (c *Compiler) writeReturnStmt(retStmt *ast.ReturnStmt) {
 	} else {
 		c.write("return")
 	}
+	return true
 }
 
-func (c *Compiler) writeBranchStmt(branchStmt *ast.BranchStmt) {
+func (c *Compiler) writeBranchStmt(branchStmt *ast.BranchStmt) bool {
 	switch tok := branchStmt.Tok; tok {
 	case token.BREAK, token.CONTINUE:
 		c.write(tok.String())
 	default:
 		c.errorf(branchStmt.TokPos, "unsupported branch statement")
 	}
+	return true
 }
 
-func (c *Compiler) writeBlockStmt(block *ast.BlockStmt) {
+func (c *Compiler) writeBlockStmt(block *ast.BlockStmt) bool {
 	c.write("{\n")
 	c.indent++
 	c.writeStmtList(block.List)
 	c.indent--
 	c.write("}")
+	return false
 }
 
-func (c *Compiler) writeIfStmt(ifStmt *ast.IfStmt) {
+func (c *Compiler) writeIfStmt(ifStmt *ast.IfStmt) bool {
 	c.write("if (")
 	if ifStmt.Init != nil {
 		c.writeStmt(ifStmt.Init)
@@ -255,9 +260,10 @@ func (c *Compiler) writeIfStmt(ifStmt *ast.IfStmt) {
 		c.write(" else ")
 		c.writeStmt(ifStmt.Else)
 	}
+	return false
 }
 
-func (c *Compiler) writeForStmt(forStmt *ast.ForStmt) {
+func (c *Compiler) writeForStmt(forStmt *ast.ForStmt) bool {
 	c.write("for (")
 	if forStmt.Init != nil {
 		c.writeStmt(forStmt.Init)
@@ -272,33 +278,37 @@ func (c *Compiler) writeForStmt(forStmt *ast.ForStmt) {
 	}
 	c.write(") ")
 	c.writeStmt(forStmt.Body)
+	return false
 }
 
-func (c *Compiler) writeStmt(stmt ast.Stmt) {
+func (c *Compiler) writeStmt(stmt ast.Stmt) bool {
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
-		c.writeExprStmt(stmt)
+		return c.writeExprStmt(stmt)
 	case *ast.AssignStmt:
-		c.writeAssignStmt(stmt)
+		return c.writeAssignStmt(stmt)
 	case *ast.ReturnStmt:
-		c.writeReturnStmt(stmt)
+		return c.writeReturnStmt(stmt)
 	case *ast.BranchStmt:
-		c.writeBranchStmt(stmt)
+		return c.writeBranchStmt(stmt)
 	case *ast.BlockStmt:
-		c.writeBlockStmt(stmt)
+		return c.writeBlockStmt(stmt)
 	case *ast.IfStmt:
-		c.writeIfStmt(stmt)
+		return c.writeIfStmt(stmt)
 	case *ast.ForStmt:
-		c.writeForStmt(stmt)
+		return c.writeForStmt(stmt)
 	default:
 		c.errorf(stmt.Pos(), "unsupported statement type")
+		return true
 	}
 }
 
 func (c *Compiler) writeStmtList(list []ast.Stmt) {
 	for _, stmt := range list {
-		c.writeStmt(stmt)
-		c.write(";\n")
+		if c.writeStmt(stmt) {
+			c.write(";")
+		}
+		c.write("\n")
 	}
 }
 
