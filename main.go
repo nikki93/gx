@@ -186,7 +186,6 @@ func (c *Compiler) writeExpr(expr ast.Expr) {
 
 func (c *Compiler) writeExprStmt(exprStmt *ast.ExprStmt) {
 	c.writeExpr(exprStmt.X)
-	c.write(";")
 }
 
 func (c *Compiler) writeAssignStmt(assignStmt *ast.AssignStmt) {
@@ -211,7 +210,6 @@ func (c *Compiler) writeAssignStmt(assignStmt *ast.AssignStmt) {
 	}
 	c.write(" ")
 	c.writeExpr(assignStmt.Rhs[0])
-	c.write(";")
 }
 
 func (c *Compiler) writeReturnStmt(retStmt *ast.ReturnStmt) {
@@ -222,9 +220,17 @@ func (c *Compiler) writeReturnStmt(retStmt *ast.ReturnStmt) {
 	if len(retStmt.Results) > 0 {
 		c.write("return ")
 		c.writeExpr(retStmt.Results[0])
-		c.write(";")
 	} else {
-		c.write("return;")
+		c.write("return")
+	}
+}
+
+func (c *Compiler) writeBranchStmt(branchStmt *ast.BranchStmt) {
+	switch tok := branchStmt.Tok; tok {
+	case token.BREAK, token.CONTINUE:
+		c.write(tok.String())
+	default:
+		c.errorf(branchStmt.TokPos, "unsupported branch statement")
 	}
 }
 
@@ -251,6 +257,23 @@ func (c *Compiler) writeIfStmt(ifStmt *ast.IfStmt) {
 	}
 }
 
+func (c *Compiler) writeForStmt(forStmt *ast.ForStmt) {
+	c.write("for (")
+	if forStmt.Init != nil {
+		c.writeStmt(forStmt.Init)
+	}
+	c.write("; ")
+	if forStmt.Cond != nil {
+		c.writeExpr(forStmt.Cond)
+	}
+	c.write("; ")
+	if forStmt.Post != nil {
+		c.writeStmt(forStmt.Post)
+	}
+	c.write(") ")
+	c.writeStmt(forStmt.Body)
+}
+
 func (c *Compiler) writeStmt(stmt ast.Stmt) {
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
@@ -259,10 +282,14 @@ func (c *Compiler) writeStmt(stmt ast.Stmt) {
 		c.writeAssignStmt(stmt)
 	case *ast.ReturnStmt:
 		c.writeReturnStmt(stmt)
+	case *ast.BranchStmt:
+		c.writeBranchStmt(stmt)
 	case *ast.BlockStmt:
 		c.writeBlockStmt(stmt)
 	case *ast.IfStmt:
 		c.writeIfStmt(stmt)
+	case *ast.ForStmt:
+		c.writeForStmt(stmt)
 	default:
 		c.errorf(stmt.Pos(), "unsupported statement type")
 	}
@@ -271,7 +298,7 @@ func (c *Compiler) writeStmt(stmt ast.Stmt) {
 func (c *Compiler) writeStmtList(list []ast.Stmt) {
 	for _, stmt := range list {
 		c.writeStmt(stmt)
-		c.write("\n")
+		c.write(";\n")
 	}
 }
 

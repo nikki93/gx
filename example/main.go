@@ -32,8 +32,31 @@ func testVariables() {
 	assert(x == 5)
 }
 
+func testFor() {
+	{
+		sum := 0
+		for i := 0; i < 5; i += 1 {
+			sum += i
+		}
+		assert(sum == 10)
+	}
+	{
+		sum := 0
+		i := 0
+		for {
+			if i >= 5 {
+				break
+			}
+			sum += i
+			i += 1
+		}
+		assert(sum == 10)
+	}
+}
+
 func main() {
 	testFib()
 	testUnary()
 	testVariables()
+	testFor()
 }
