@@ -27,6 +27,8 @@ type Compiler struct {
 	types   *types.Info
 
 	genTypeNames map[types.Type]string // Should we use `typeutil.Map` (equivalence-based keys)?
+	genTypeDecls map[*ast.TypeSpec]string
+	genTypeDefns map[*ast.TypeSpec]string
 	genFuncDecls map[*ast.FuncDecl]string
 
 	indent int
@@ -67,6 +69,52 @@ func (c *Compiler) genTypeName(typ types.Type) string {
 	} else {
 		result = typ.String()
 		c.genTypeNames[typ] = result
+		return result
+	}
+}
+
+func (c *Compiler) genTypeDecl(typeSpec *ast.TypeSpec) string {
+	if result, ok := c.genTypeDecls[typeSpec]; ok {
+		return result
+	} else {
+		switch typeSpec.Type.(type) {
+		case *ast.StructType:
+			result = "struct " + typeSpec.Name.String()
+		default:
+			c.errorf(typeSpec.Type.Pos(), "type not supported")
+		}
+		c.genTypeDecls[typeSpec] = result
+		return result
+	}
+}
+
+func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
+	if result, ok := c.genTypeDefns[typeSpec]; ok {
+		return result
+	} else {
+		builder := &strings.Builder{}
+		switch typ := typeSpec.Type.(type) {
+		case *ast.StructType:
+			builder.WriteString(c.genTypeDecl(typeSpec))
+			builder.WriteString(" {\n")
+			for _, field := range typ.Fields.List {
+				if typ := c.types.TypeOf(field.Type); typ != nil {
+					typeName := c.genTypeName(typ)
+					for _, fieldName := range field.Names {
+						builder.WriteString("  ")
+						builder.WriteString(typeName)
+						builder.WriteString(" ")
+						builder.WriteString(fieldName.String())
+						builder.WriteString(";\n")
+					}
+				}
+			}
+			builder.WriteString("}")
+		default:
+			c.errorf(typeSpec.Type.Pos(), "type not supported")
+		}
+		result = builder.String()
+		c.genTypeDefns[typeSpec] = result
 		return result
 	}
 }
@@ -130,10 +178,50 @@ func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 	}
 }
 
+func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
+	c.write("(")
+	c.writeExpr(lit.Type)
+	c.write(" {")
+	if len(lit.Elts) > 0 {
+		c.write(" ")
+		if _, ok := lit.Elts[0].(*ast.KeyValueExpr); ok {
+			for i, elt := range lit.Elts {
+				if elt, ok := elt.(*ast.KeyValueExpr); ok {
+					if name, ok := elt.Key.(*ast.Ident); ok {
+						if i > 0 {
+							c.write(", ")
+						}
+						c.write(".")
+						c.write(name.String())
+						c.write(" = ")
+						c.writeExpr(elt.Value)
+					}
+				}
+			}
+		} else {
+			for i, elt := range lit.Elts {
+				if i > 0 {
+					c.write(", ")
+				}
+				c.writeExpr(elt)
+			}
+		}
+		c.write(" ")
+	}
+	c.write("}")
+	c.write(")")
+}
+
 func (c *Compiler) writeParenExpr(bin *ast.ParenExpr) {
 	c.write("(")
 	c.writeExpr(bin.X)
 	c.write(")")
+}
+
+func (c *Compiler) writeSelectorExpr(sel *ast.SelectorExpr) {
+	c.writeExpr(sel.X)
+	c.write(".")
+	c.writeIdent(sel.Sel)
 }
 
 func (c *Compiler) writeUnaryExpr(bin *ast.UnaryExpr) {
@@ -179,14 +267,18 @@ func (c *Compiler) writeExpr(expr ast.Expr) {
 		c.writeIdent(expr)
 	case *ast.BasicLit:
 		c.writeBasicLit(expr)
+	case *ast.CompositeLit:
+		c.writeCompositeLit(expr)
 	case *ast.ParenExpr:
 		c.writeParenExpr(expr)
+	case *ast.SelectorExpr:
+		c.writeSelectorExpr(expr)
+	case *ast.CallExpr:
+		c.writeCallExpr(expr)
 	case *ast.UnaryExpr:
 		c.writeUnaryExpr(expr)
 	case *ast.BinaryExpr:
 		c.writeBinaryExpr(expr)
-	case *ast.CallExpr:
-		c.writeCallExpr(expr)
 	default:
 		c.errorf(expr.Pos(), "unsupported expression type")
 	}
@@ -328,6 +420,8 @@ func (c *Compiler) compile() {
 
 	// Initialize maps
 	c.genTypeNames = make(map[types.Type]string)
+	c.genTypeDecls = make(map[*ast.TypeSpec]string)
+	c.genTypeDefns = make(map[*ast.TypeSpec]string)
 	c.genFuncDecls = make(map[*ast.FuncDecl]string)
 
 	// Initialize builders
@@ -361,6 +455,59 @@ func (c *Compiler) compile() {
 
 	// `#include`s
 	c.write("#include \"prelude.hh\"\n")
+
+	// Collect type specs
+	var typeSpecs []*ast.TypeSpec
+	{
+		typeSpecTopLevel := make(map[*ast.TypeSpec]bool)
+		for _, file := range c.files {
+			for _, decl := range file.Decls {
+				if decl, ok := decl.(*ast.GenDecl); ok {
+					for _, spec := range decl.Specs {
+						if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+							typeSpecTopLevel[typeSpec] = true
+						}
+					}
+				}
+			}
+		}
+		typeSpecCollected := make(map[*ast.TypeSpec]bool)
+		var collectTypeSpecs func(node ast.Node) bool
+		collectTypeSpecs = func(node ast.Node) bool {
+			if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
+				if typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
+					if typeSpecTopLevel[typeSpec] && !typeSpecCollected[typeSpec] {
+						typeSpecCollected[typeSpec] = true
+						ast.Inspect(typeSpec, collectTypeSpecs)
+						typeSpecs = append(typeSpecs, typeSpec)
+					}
+				}
+			}
+			return true
+		}
+		for _, file := range c.files {
+			for _, decl := range file.Decls {
+				if decl, ok := decl.(*ast.FuncDecl); ok {
+					ast.Inspect(decl, collectTypeSpecs)
+				}
+			}
+		}
+	}
+
+	// Type declarations
+	c.write("\n\n")
+	for _, typeSpec := range typeSpecs {
+		c.write(c.genTypeDecl(typeSpec))
+		c.write(";\n")
+	}
+
+	// Type definitions
+	c.write("\n")
+	for _, typeSpec := range typeSpecs {
+		c.write("\n")
+		c.write(c.genTypeDefn(typeSpec))
+		c.write(";\n")
+	}
 
 	// Function declarations
 	c.write("\n\n")

@@ -1,5 +1,37 @@
 package main
 
+type Struct struct {
+	x int
+	y int
+}
+
+func testStruct() {
+	{
+		s := Struct{}
+		assert(s.x == 0)
+		assert(s.y == 0)
+	}
+	{
+		s := Struct{2, 3}
+		assert(s.x == 2)
+		assert(s.y == 3)
+		s.x += 1
+		s.y += 1
+		assert(s.x == 3)
+		assert(s.y == 4)
+	}
+	{
+		s := Struct{x: 2, y: 3}
+		assert(s.x == 2)
+		assert(s.y == 3)
+	}
+	{
+		s := Struct{y: 3, x: 2}
+		assert(s.x == 2)
+		assert(s.y == 3)
+	}
+}
+
 func fib(n int) int {
 	if n <= 1 {
 		return n
@@ -68,4 +100,5 @@ func main() {
 	testUnary()
 	testVariables()
 	testFor()
+	testStruct()
 }
