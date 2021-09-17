@@ -184,27 +184,11 @@ func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
 	c.write(" {")
 	if len(lit.Elts) > 0 {
 		c.write(" ")
-		if _, ok := lit.Elts[0].(*ast.KeyValueExpr); ok {
-			for i, elt := range lit.Elts {
-				if elt, ok := elt.(*ast.KeyValueExpr); ok {
-					if name, ok := elt.Key.(*ast.Ident); ok {
-						if i > 0 {
-							c.write(", ")
-						}
-						c.write(".")
-						c.write(name.String())
-						c.write(" = ")
-						c.writeExpr(elt.Value)
-					}
-				}
+		for i, elt := range lit.Elts {
+			if i > 0 {
+				c.write(", ")
 			}
-		} else {
-			for i, elt := range lit.Elts {
-				if i > 0 {
-					c.write(", ")
-				}
-				c.writeExpr(elt)
-			}
+			c.writeExpr(elt)
 		}
 		c.write(" ")
 	}
@@ -249,6 +233,17 @@ func (c *Compiler) writeBinaryExpr(bin *ast.BinaryExpr) {
 	c.writeExpr(bin.Y)
 }
 
+func (c *Compiler) writeKeyValueExpr(kv *ast.KeyValueExpr) {
+	if name, ok := kv.Key.(*ast.Ident); !ok {
+		c.errorf(kv.Pos(), "unsupported literal key")
+	} else {
+		c.write(".")
+		c.write(name.String())
+		c.write(" = ")
+		c.writeExpr(kv.Value)
+	}
+}
+
 func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 	c.writeExpr(call.Fun)
 	c.write("(")
@@ -279,6 +274,8 @@ func (c *Compiler) writeExpr(expr ast.Expr) {
 		c.writeUnaryExpr(expr)
 	case *ast.BinaryExpr:
 		c.writeBinaryExpr(expr)
+	case *ast.KeyValueExpr:
+		c.writeKeyValueExpr(expr)
 	default:
 		c.errorf(expr.Pos(), "unsupported expression type")
 	}
