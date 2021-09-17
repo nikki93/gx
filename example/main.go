@@ -43,6 +43,15 @@ func testFor() {
 	{
 		sum := 0
 		i := 0
+		for i < 5 {
+			sum += i
+			i += 1
+		}
+		assert(sum == 10)
+	}
+	{
+		sum := 0
+		i := 0
 		for {
 			if i >= 5 {
 				break
