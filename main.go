@@ -183,14 +183,24 @@ func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
 	c.writeExpr(lit.Type)
 	c.write(" {")
 	if len(lit.Elts) > 0 {
-		c.write(" ")
-		for i, elt := range lit.Elts {
-			if i > 0 {
-				c.write(", ")
+		if c.fileSet.Position(lit.Pos()).Line == c.fileSet.Position(lit.Elts[0].Pos()).Line {
+			c.write(" ")
+			for i, elt := range lit.Elts {
+				if i > 0 {
+					c.write(", ")
+				}
+				c.writeExpr(elt)
 			}
-			c.writeExpr(elt)
+			c.write(" ")
+		} else {
+			c.write("\n")
+			c.indent++
+			for _, elt := range lit.Elts {
+				c.writeExpr(elt)
+				c.write(",\n")
+			}
+			c.indent--
 		}
-		c.write(" ")
 	}
 	c.write("}")
 	c.write(")")

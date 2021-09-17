@@ -36,7 +36,13 @@ func testStruct() {
 		assert(s.i.z == 4)
 	}
 	{
-		s := Struct{i: InnerStruct{z: 4}, y: 3, x: 2}
+		s := Struct{
+			i: InnerStruct{
+				z: 4,
+			},
+			y: 3,
+			x: 2,
+		}
 		assert(s.x == 2)
 		assert(s.y == 3)
 		assert(s.i.z == 4)
