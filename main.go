@@ -31,9 +31,10 @@ type Compiler struct {
 	genTypeDefns map[*ast.TypeSpec]string
 	genFuncDecls map[*ast.FuncDecl]string
 
-	indent int
-	errors *strings.Builder
-	output *strings.Builder
+	indent     int
+	errors     *strings.Builder
+	output     *strings.Builder
+	atBlockEnd bool
 }
 
 func (c *Compiler) errorf(pos token.Pos, format string, args ...interface{}) {
@@ -55,6 +56,7 @@ func (c *Compiler) last() byte {
 }
 
 func (c *Compiler) write(s string) {
+	c.atBlockEnd = false
 	if c.last() == '\n' {
 		for i := 0; i < 2*c.indent; i++ {
 			c.output.WriteByte(' ')
@@ -179,7 +181,6 @@ func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 }
 
 func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
-	c.write("(")
 	c.writeExpr(lit.Type)
 	c.write(" {")
 	if len(lit.Elts) > 0 {
@@ -203,7 +204,6 @@ func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
 		}
 	}
 	c.write("}")
-	c.write(")")
 }
 
 func (c *Compiler) writeParenExpr(bin *ast.ParenExpr) {
@@ -347,6 +347,7 @@ func (c *Compiler) writeBlockStmt(block *ast.BlockStmt) {
 	c.writeStmtList(block.List)
 	c.indent--
 	c.write("}")
+	c.atBlockEnd = true
 }
 
 func (c *Compiler) writeIfStmt(ifStmt *ast.IfStmt) {
@@ -405,7 +406,7 @@ func (c *Compiler) writeStmt(stmt ast.Stmt) {
 func (c *Compiler) writeStmtList(list []ast.Stmt) {
 	for _, stmt := range list {
 		c.writeStmt(stmt)
-		if c.last() != '}' {
+		if !c.atBlockEnd {
 			c.write(";")
 		}
 		c.write("\n")
