@@ -14,10 +14,6 @@ import (
 
 const debug = true
 
-//
-// Compiler
-//
-
 type Compiler struct {
 	directoryPath string
 	filePaths     []string
@@ -36,6 +32,10 @@ type Compiler struct {
 	output     *strings.Builder
 	atBlockEnd bool
 }
+
+//
+// Errors
+//
 
 func (c *Compiler) errorf(pos token.Pos, format string, args ...interface{}) {
 	fmt.Fprintf(c.errors, "%s: ", c.fileSet.PositionFor(pos, true))
@@ -56,6 +56,10 @@ func (c *Compiler) write(s string) {
 	}
 	c.output.WriteString(s)
 }
+
+//
+// Types
+//
 
 func (c *Compiler) genTypeName(typ types.Type) string {
 	if result, ok := c.genTypeNames[typ]; ok {
@@ -113,6 +117,10 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 	}
 }
 
+//
+// Functions
+//
+
 func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 	if result, ok := c.genFuncDecls[decl]; ok {
 		return result
@@ -158,6 +166,10 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 		return result
 	}
 }
+
+//
+// Expressions
+//
 
 func (c *Compiler) writeIdent(ident *ast.Ident) {
 	c.write(ident.Name)
@@ -283,6 +295,10 @@ func (c *Compiler) writeExpr(expr ast.Expr) {
 	}
 }
 
+//
+// Statements
+//
+
 func (c *Compiler) writeExprStmt(exprStmt *ast.ExprStmt) {
 	c.writeExpr(exprStmt.X)
 }
@@ -404,6 +420,10 @@ func (c *Compiler) writeStmtList(list []ast.Stmt) {
 		c.write("\n")
 	}
 }
+
+//
+// Top-level
+//
 
 func (c *Compiler) compile() {
 	// Collect file paths from directory
