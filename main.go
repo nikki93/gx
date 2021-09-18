@@ -47,17 +47,9 @@ func (c *Compiler) errored() bool {
 	return c.errors.Len() != 0
 }
 
-func (c *Compiler) last() byte {
-	if peek := c.output.String(); len(peek) > 0 {
-		return peek[len(peek)-1]
-	} else {
-		return 0
-	}
-}
-
 func (c *Compiler) write(s string) {
 	c.atBlockEnd = false
-	if c.last() == '\n' {
+	if peek := c.output.String(); len(peek) > 0 && peek[len(peek)-1] == '\n' {
 		for i := 0; i < 2*c.indent; i++ {
 			c.output.WriteByte(' ')
 		}
