@@ -1,53 +1,8 @@
 package main
 
-type Struct struct {
-	x int
-	y int
-	i InnerStruct
-}
-
-type InnerStruct struct {
-	z int
-}
-
-func testStruct() {
-	{
-		s := Struct{}
-		assert(s.x == 0)
-		assert(s.y == 0)
-		assert(s.i.z == 0)
-	}
-	{
-		s := Struct{2, 3, InnerStruct{4}}
-		assert(s.x == 2)
-		assert(s.y == 3)
-		assert(s.i.z == 4)
-		s.x += 1
-		s.y += 1
-		s.i.z += 1
-		assert(s.x == 3)
-		assert(s.y == 4)
-		assert(s.i.z == 5)
-	}
-	{
-		s := Struct{x: 2, y: 3, i: InnerStruct{z: 4}}
-		assert(s.x == 2)
-		assert(s.y == 3)
-		assert(s.i.z == 4)
-	}
-	{
-		s := Struct{
-			i: InnerStruct{
-				z: 4,
-			},
-			y: 3,
-			x: 2,
-		}
-		assert(s.x == 2)
-		assert(s.y == 3)
-		assert(s.i.z == 4)
-	}
-}
+//
+// Basics
+//
 
 func fib(n int) int {
 	if n <= 1 {
@@ -112,10 +67,80 @@ func testFor() {
 	}
 }
 
+//
+// Structs
+//
+
+type Struct struct {
+	x int
+	y int
+	i InnerStruct
+}
+
+type InnerStruct struct {
+	z int
+}
+
+func testStruct() {
+	{
+		s := Struct{}
+		assert(s.x == 0)
+		assert(s.y == 0)
+		assert(s.i.z == 0)
+	}
+	{
+		s := Struct{2, 3, InnerStruct{4}}
+		assert(s.x == 2)
+		assert(s.y == 3)
+		assert(s.i.z == 4)
+		s.x += 1
+		s.y += 1
+		s.i.z += 1
+		assert(s.x == 3)
+		assert(s.y == 4)
+		assert(s.i.z == 5)
+	}
+	{
+		s := Struct{x: 2, y: 3, i: InnerStruct{z: 4}}
+		assert(s.x == 2)
+		assert(s.y == 3)
+		assert(s.i.z == 4)
+	}
+	{
+		s := Struct{
+			i: InnerStruct{
+				z: 4,
+			},
+			y: 3,
+			x: 2,
+		}
+		assert(s.x == 2)
+		assert(s.y == 3)
+		assert(s.i.z == 4)
+	}
+}
+
+//
+// Pointers
+//
+
+func testPointer() {
+	val := 42
+	assert(val == 42)
+	ptr := &val
+	*ptr = 14
+	assert(val == 14)
+}
+
+//
+// Main
+//
+
 func main() {
 	testFib()
 	testUnary()
 	testVariables()
 	testFor()
 	testStruct()
+	testPointer()
 }

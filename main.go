@@ -222,14 +222,21 @@ func (c *Compiler) writeSelectorExpr(sel *ast.SelectorExpr) {
 	c.writeIdent(sel.Sel)
 }
 
-func (c *Compiler) writeUnaryExpr(bin *ast.UnaryExpr) {
-	switch op := bin.Op; op {
+func (c *Compiler) writeStarExpr(star *ast.StarExpr) {
+	c.write("*")
+	c.writeExpr(star.X)
+}
+
+func (c *Compiler) writeUnaryExpr(un *ast.UnaryExpr) {
+	switch op := un.Op; op {
 	case token.ADD, token.SUB, token.NOT:
 		c.write(op.String())
+	case token.AND:
+		c.write(op.String())
 	default:
-		c.errorf(bin.OpPos, "unsupported unary operator")
+		c.errorf(un.OpPos, "unsupported unary operator")
 	}
-	c.writeExpr(bin.X)
+	c.writeExpr(un.X)
 }
 
 func (c *Compiler) writeBinaryExpr(bin *ast.BinaryExpr) {
@@ -284,6 +291,8 @@ func (c *Compiler) writeExpr(expr ast.Expr) {
 		c.writeSelectorExpr(expr)
 	case *ast.CallExpr:
 		c.writeCallExpr(expr)
+	case *ast.StarExpr:
+		c.writeStarExpr(expr)
 	case *ast.UnaryExpr:
 		c.writeUnaryExpr(expr)
 	case *ast.BinaryExpr:
