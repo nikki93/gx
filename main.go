@@ -65,7 +65,34 @@ func (c *Compiler) genTypeName(typ types.Type) string {
 	if result, ok := c.genTypeNames[typ]; ok {
 		return result
 	} else {
-		result = typ.String()
+		builder := &strings.Builder{}
+		switch typ := typ.(type) {
+		case *types.Basic:
+			switch typ.Kind() {
+			case types.Bool:
+				builder.WriteString("bool")
+			case types.Int:
+				builder.WriteString("int")
+			case types.Float32:
+				builder.WriteString("float")
+			case types.Float64:
+				builder.WriteString("double")
+			default:
+				c.errorf(0, "type not supported")
+			}
+		case *types.Pointer:
+			elemTypeName := c.genTypeName(typ.Elem())
+			builder.WriteString(elemTypeName)
+			if elemTypeName == "" || elemTypeName[len(elemTypeName)-1] != '*' {
+				builder.WriteByte(' ')
+			}
+			builder.WriteByte('*')
+		case *types.Named:
+			builder.WriteString(typ.String())
+		default:
+			c.errorf(0, "type not supported")
+		}
+		result = builder.String()
 		c.genTypeNames[typ] = result
 		return result
 	}
@@ -75,12 +102,15 @@ func (c *Compiler) genTypeDecl(typeSpec *ast.TypeSpec) string {
 	if result, ok := c.genTypeDecls[typeSpec]; ok {
 		return result
 	} else {
+		builder := &strings.Builder{}
 		switch typeSpec.Type.(type) {
 		case *ast.StructType:
-			result = "struct " + typeSpec.Name.String()
+			builder.WriteString("struct ")
+			builder.WriteString(typeSpec.Name.String())
 		default:
 			c.errorf(typeSpec.Type.Pos(), "type not supported")
 		}
+		result = builder.String()
 		c.genTypeDecls[typeSpec] = result
 		return result
 	}
@@ -101,13 +131,13 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 					for _, fieldName := range field.Names {
 						builder.WriteString("  ")
 						builder.WriteString(typeName)
-						builder.WriteString(" ")
+						builder.WriteByte(' ')
 						builder.WriteString(fieldName.String())
 						builder.WriteString(";\n")
 					}
 				}
 			}
-			builder.WriteString("}")
+			builder.WriteByte('}')
 		default:
 			c.errorf(typeSpec.Type.Pos(), "type not supported")
 		}
@@ -155,8 +185,11 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 				builder.WriteString(", ")
 			}
 			param := signature.Params().At(i)
-			builder.WriteString(c.genTypeName(param.Type())) // TODO: Factor out into `c.genVarDecl`
-			builder.WriteByte(' ')
+			typeName := c.genTypeName(param.Type())
+			builder.WriteString(typeName) // TODO: Factor out into `c.genVarDecl`
+			if typeName == "" || typeName[len(typeName)-1] != '*' {
+				builder.WriteByte(' ')
+			}
 			builder.WriteString(param.Name())
 		}
 		builder.WriteByte(')')

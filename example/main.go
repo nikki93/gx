@@ -124,12 +124,18 @@ func testStruct() {
 // Pointers
 //
 
+func setToFortyTwo(ptr *int) {
+	*ptr = 42
+}
+
 func testPointer() {
 	val := 42
 	assert(val == 42)
 	ptr := &val
 	*ptr = 14
 	assert(val == 14)
+	setToFortyTwo(ptr)
+	assert(val == 42)
 }
 
 //
