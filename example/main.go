@@ -158,6 +158,23 @@ func testStruct() {
 }
 
 //
+// Methods
+//
+
+type Point struct {
+	x, y float32
+}
+
+func (p Point) sum() float32 {
+	return p.x + p.y
+}
+
+func testMethod() {
+	p := Point{2, 3}
+	assert(p.sum() == 5)
+}
+
+//
 // Main
 //
 
@@ -168,4 +185,5 @@ func main() {
 	testFor()
 	testPointer()
 	testStruct()
+	testMethod()
 }

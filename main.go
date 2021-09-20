@@ -181,17 +181,22 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 
 		// Parameters
 		builder.WriteByte('(')
-		for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
-			if i > 0 {
-				builder.WriteString(", ")
-			}
-			param := sig.Params().At(i)
+		addParam := func(param *types.Var) {
 			typeName := c.genTypeName(param.Type(), param.Pos())
-			builder.WriteString(typeName) // TODO: Factor out into `c.genVarDecl`
+			builder.WriteString(typeName)
 			if typeName == "" || typeName[len(typeName)-1] != '*' {
 				builder.WriteByte(' ')
 			}
 			builder.WriteString(param.Name())
+		}
+		if sig.Recv() != nil {
+			addParam(sig.Recv())
+		}
+		for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
+			if i > 0 || sig.Recv() != nil {
+				builder.WriteString(", ")
+			}
+			addParam(sig.Params().At(i))
 		}
 		builder.WriteByte(')')
 
@@ -304,10 +309,21 @@ func (c *Compiler) writeKeyValueExpr(kv *ast.KeyValueExpr) {
 }
 
 func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
-	c.writeExpr(call.Fun)
-	c.write("(")
+	method := false
+	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+		if sig, ok := c.types.Uses[sel.Sel].Type().(*types.Signature); ok && sig.Recv() != nil {
+			method = true
+			c.writeIdent(sel.Sel)
+			c.write("(")
+			c.writeExpr(sel.X)
+		}
+	}
+	if !method {
+		c.writeExpr(call.Fun)
+		c.write("(")
+	}
 	for i, arg := range call.Args {
-		if i > 0 {
+		if i > 0 || method {
 			c.write(", ")
 		}
 		c.writeExpr(arg)
