@@ -89,50 +89,63 @@ func testPointer() {
 // Structs
 //
 
-type Struct struct {
-	x int
-	y int
-	i InnerStruct
+type Outer struct {
+	x     int
+	y     int
+	inner Inner
 }
 
-type InnerStruct struct {
+type Inner struct {
 	z int
+}
+
+func outerSum(o Outer) int {
+	return o.x + o.y + o.inner.z
+}
+
+func setXToFortyTwo(o *Outer) {
+	o.x = 42
 }
 
 func testStruct() {
 	{
-		s := Struct{}
+		s := Outer{}
 		assert(s.x == 0)
 		assert(s.y == 0)
-		assert(s.i.z == 0)
-		p := &s
-		p.x = 2
-		assert(p.x == 2)
-		assert(s.x == 2)
-		s.y = 4
-		assert(p.y == 4)
+		assert(s.inner.z == 0)
+		{
+			p := &s
+			p.x = 2
+			assert(p.x == 2)
+			assert(s.x == 2)
+			s.y = 4
+			assert(p.y == 4)
+		}
+		assert(outerSum(s) == 6)
+		setXToFortyTwo(&s)
+		assert(s.x == 42)
 	}
 	{
-		s := Struct{2, 3, InnerStruct{4}}
+		s := Outer{2, 3, Inner{4}}
 		assert(s.x == 2)
 		assert(s.y == 3)
-		assert(s.i.z == 4)
+		assert(s.inner.z == 4)
 		s.x += 1
 		s.y += 1
-		s.i.z += 1
+		s.inner.z += 1
 		assert(s.x == 3)
 		assert(s.y == 4)
-		assert(s.i.z == 5)
+		assert(s.inner.z == 5)
 	}
 	{
-		s := Struct{x: 2, y: 3, i: InnerStruct{z: 4}}
+		s := Outer{x: 2, y: 3, inner: Inner{z: 4}}
 		assert(s.x == 2)
 		assert(s.y == 3)
-		assert(s.i.z == 4)
+		assert(s.inner.z == 4)
 	}
 	{
-		s := Struct{
-			i: InnerStruct{
+		s := Outer{
+			inner: Inner{
 				z: 4,
 			},
 			y: 3,
@@ -140,7 +153,7 @@ func testStruct() {
 		}
 		assert(s.x == 2)
 		assert(s.y == 3)
-		assert(s.i.z == 4)
+		assert(s.inner.z == 4)
 	}
 }
 
