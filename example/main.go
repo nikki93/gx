@@ -68,6 +68,24 @@ func testFor() {
 }
 
 //
+// Pointers
+//
+
+func setToFortyTwo(ptr *int) {
+	*ptr = 42
+}
+
+func testPointer() {
+	val := 42
+	assert(val == 42)
+	ptr := &val
+	*ptr = 14
+	assert(val == 14)
+	setToFortyTwo(ptr)
+	assert(val == 42)
+}
+
+//
 // Structs
 //
 
@@ -87,6 +105,12 @@ func testStruct() {
 		assert(s.x == 0)
 		assert(s.y == 0)
 		assert(s.i.z == 0)
+		p := &s
+		p.x = 2
+		assert(p.x == 2)
+		assert(s.x == 2)
+		s.y = 4
+		assert(p.y == 4)
 	}
 	{
 		s := Struct{2, 3, InnerStruct{4}}
@@ -121,24 +145,6 @@ func testStruct() {
 }
 
 //
-// Pointers
-//
-
-func setToFortyTwo(ptr *int) {
-	*ptr = 42
-}
-
-func testPointer() {
-	val := 42
-	assert(val == 42)
-	ptr := &val
-	*ptr = 14
-	assert(val == 14)
-	setToFortyTwo(ptr)
-	assert(val == 42)
-}
-
-//
 // Main
 //
 
@@ -147,6 +153,6 @@ func main() {
 	testUnary()
 	testVariables()
 	testFor()
-	testStruct()
 	testPointer()
+	testStruct()
 }

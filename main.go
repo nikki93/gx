@@ -252,7 +252,11 @@ func (c *Compiler) writeParenExpr(bin *ast.ParenExpr) {
 
 func (c *Compiler) writeSelectorExpr(sel *ast.SelectorExpr) {
 	c.writeExpr(sel.X)
-	c.write(".")
+	if _, ok := c.types.TypeOf(sel.X).(*types.Pointer); ok {
+		c.write("->")
+	} else {
+		c.write(".")
+	}
 	c.writeIdent(sel.Sel)
 }
 
