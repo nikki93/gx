@@ -61,7 +61,7 @@ func (c *Compiler) write(s string) {
 // Types
 //
 
-func (c *Compiler) genTypeName(typ types.Type) string {
+func (c *Compiler) genTypeName(typ types.Type, pos token.Pos) string {
 	if result, ok := c.genTypeNames[typ]; ok {
 		return result
 	} else {
@@ -78,10 +78,10 @@ func (c *Compiler) genTypeName(typ types.Type) string {
 			case types.Float64:
 				builder.WriteString("double")
 			default:
-				c.errorf(0, "type not supported")
+				c.errorf(pos, "type not supported")
 			}
 		case *types.Pointer:
-			elemTypeName := c.genTypeName(typ.Elem())
+			elemTypeName := c.genTypeName(typ.Elem(), pos)
 			builder.WriteString(elemTypeName)
 			if elemTypeName == "" || elemTypeName[len(elemTypeName)-1] != '*' {
 				builder.WriteByte(' ')
@@ -90,7 +90,7 @@ func (c *Compiler) genTypeName(typ types.Type) string {
 		case *types.Named:
 			builder.WriteString(typ.String())
 		default:
-			c.errorf(0, "type not supported")
+			c.errorf(pos, "type not supported")
 		}
 		result = builder.String()
 		c.genTypeNames[typ] = result
@@ -127,7 +127,7 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 			builder.WriteString(" {\n")
 			for _, field := range typ.Fields.List {
 				if typ := c.types.TypeOf(field.Type); typ != nil {
-					typeName := c.genTypeName(typ)
+					typeName := c.genTypeName(typ, field.Type.Pos())
 					for _, fieldName := range field.Names {
 						builder.WriteString("  ")
 						builder.WriteString(typeName)
@@ -155,23 +155,24 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 	if result, ok := c.genFuncDecls[decl]; ok {
 		return result
 	} else {
-		signature := c.types.Defs[decl.Name].Type().(*types.Signature)
-		results := signature.Results()
-		if results.Len() > 1 {
+		sig := c.types.Defs[decl.Name].Type().(*types.Signature)
+		sigResults := sig.Results()
+		if sigResults.Len() > 1 {
 			c.errorf(decl.Type.Results.Pos(), "multiple return values not supported")
 		}
 
 		builder := &strings.Builder{}
 
 		// Return type
-		if results.Len() == 0 {
+		if sigResults.Len() == 0 {
 			if decl.Name.String() == "main" && decl.Recv == nil {
 				builder.WriteString("int ")
 			} else {
 				builder.WriteString("void ")
 			}
 		} else {
-			builder.WriteString(c.genTypeName(results.At(0).Type()))
+			sigResult := sigResults.At(0)
+			builder.WriteString(c.genTypeName(sigResult.Type(), sigResult.Pos()))
 			builder.WriteByte(' ')
 		}
 
@@ -180,12 +181,12 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 
 		// Parameters
 		builder.WriteByte('(')
-		for i, nParams := 0, signature.Params().Len(); i < nParams; i++ {
+		for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
 			if i > 0 {
 				builder.WriteString(", ")
 			}
-			param := signature.Params().At(i)
-			typeName := c.genTypeName(param.Type())
+			param := sig.Params().At(i)
+			typeName := c.genTypeName(param.Type(), param.Pos())
 			builder.WriteString(typeName) // TODO: Factor out into `c.genVarDecl`
 			if typeName == "" || typeName[len(typeName)-1] != '*' {
 				builder.WriteByte(' ')
