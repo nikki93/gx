@@ -315,7 +315,19 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 			method = true
 			c.writeIdent(sel.Sel)
 			c.write("(")
-			c.writeExpr(sel.X)
+			_, xPtr := c.types.TypeOf(sel.X).(*types.Pointer)
+			_, recvPtr := sig.Recv().Type().(*types.Pointer)
+			if xPtr && !recvPtr {
+				c.write("*(")
+				c.writeExpr(sel.X)
+				c.write(")")
+			} else if !xPtr && recvPtr {
+				c.write("&(")
+				c.writeExpr(sel.X)
+				c.write(")")
+			} else {
+				c.writeExpr(sel.X)
+			}
 		}
 	}
 	if !method {

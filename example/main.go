@@ -169,9 +169,19 @@ func (p Point) sum() float32 {
 	return p.x + p.y
 }
 
+func (p *Point) setZero() {
+	p.x = 0
+	p.y = 0
+}
+
 func testMethod() {
 	p := Point{2, 3}
 	assert(p.sum() == 5)
+	ptr := &p
+	assert(ptr.sum() == 5) // Pointer as value receiver
+	p.setZero()            // Addressable value as pointer receiver
+	assert(p.x == 0)
+	assert(p.y == 0)
 }
 
 //
