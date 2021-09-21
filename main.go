@@ -12,8 +12,6 @@ import (
 	"strings"
 )
 
-const debug = true
-
 type Compiler struct {
 	directoryPath string
 	filePaths     []string
@@ -34,7 +32,7 @@ type Compiler struct {
 }
 
 //
-// Errors
+// Error and writing utilities
 //
 
 func (c *Compiler) errorf(pos token.Pos, format string, args ...interface{}) {
@@ -265,6 +263,41 @@ func (c *Compiler) writeSelectorExpr(sel *ast.SelectorExpr) {
 	c.writeIdent(sel.Sel)
 }
 
+func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
+	method := false
+	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+		if sig, ok := c.types.Uses[sel.Sel].Type().(*types.Signature); ok && sig.Recv() != nil {
+			method = true
+			c.writeIdent(sel.Sel)
+			c.write("(")
+			_, xPtr := c.types.TypeOf(sel.X).(*types.Pointer)
+			_, recvPtr := sig.Recv().Type().(*types.Pointer)
+			if xPtr && !recvPtr {
+				c.write("*(")
+				c.writeExpr(sel.X)
+				c.write(")")
+			} else if !xPtr && recvPtr {
+				c.write("&(")
+				c.writeExpr(sel.X)
+				c.write(")")
+			} else {
+				c.writeExpr(sel.X)
+			}
+		}
+	}
+	if !method {
+		c.writeExpr(call.Fun)
+		c.write("(")
+	}
+	for i, arg := range call.Args {
+		if i > 0 || method {
+			c.write(", ")
+		}
+		c.writeExpr(arg)
+	}
+	c.write(")")
+}
+
 func (c *Compiler) writeStarExpr(star *ast.StarExpr) {
 	c.write("*")
 	c.writeExpr(star.X)
@@ -306,41 +339,6 @@ func (c *Compiler) writeKeyValueExpr(kv *ast.KeyValueExpr) {
 		c.write(" = ")
 		c.writeExpr(kv.Value)
 	}
-}
-
-func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
-	method := false
-	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-		if sig, ok := c.types.Uses[sel.Sel].Type().(*types.Signature); ok && sig.Recv() != nil {
-			method = true
-			c.writeIdent(sel.Sel)
-			c.write("(")
-			_, xPtr := c.types.TypeOf(sel.X).(*types.Pointer)
-			_, recvPtr := sig.Recv().Type().(*types.Pointer)
-			if xPtr && !recvPtr {
-				c.write("*(")
-				c.writeExpr(sel.X)
-				c.write(")")
-			} else if !xPtr && recvPtr {
-				c.write("&(")
-				c.writeExpr(sel.X)
-				c.write(")")
-			} else {
-				c.writeExpr(sel.X)
-			}
-		}
-	}
-	if !method {
-		c.writeExpr(call.Fun)
-		c.write("(")
-	}
-	for i, arg := range call.Args {
-		if i > 0 || method {
-			c.write(", ")
-		}
-		c.writeExpr(arg)
-	}
-	c.write(")")
 }
 
 func (c *Compiler) writeExpr(expr ast.Expr) {
@@ -629,15 +627,6 @@ func (c *Compiler) compile() {
 				}
 			}
 		}
-	}
-
-	// Debug
-	if debug {
-		fmt.Print("// types:")
-		for typ := range c.genTypeNames {
-			fmt.Printf(" %s", typ.String())
-		}
-		fmt.Print("\n\n")
 	}
 }
 
