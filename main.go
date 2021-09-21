@@ -20,6 +20,7 @@ type Compiler struct {
 	files   []*ast.File
 	types   *types.Info
 
+	fieldIndices map[*types.Var]int
 	genTypeNames map[types.Type]string // Should we use `typeutil.Map` (equivalence-based keys)?
 	genTypeDecls map[*ast.TypeSpec]string
 	genTypeDefns map[*ast.TypeSpec]string
@@ -58,6 +59,19 @@ func (c *Compiler) write(s string) {
 //
 // Types
 //
+
+func (c *Compiler) computeFieldIndices(typ *types.Struct) {
+	nFields := typ.NumFields()
+	if nFields == 0 {
+		return
+	}
+	if _, ok := c.fieldIndices[typ.Field(0)]; ok {
+		return
+	}
+	for i := 0; i < nFields; i++ {
+		c.fieldIndices[typ.Field(i)] = i
+	}
+}
 
 func (c *Compiler) genTypeName(typ types.Type, pos token.Pos) string {
 	if result, ok := c.genTypeNames[typ]; ok {
@@ -227,20 +241,15 @@ func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
 	if len(lit.Elts) > 0 {
 		if _, ok := lit.Elts[0].(*ast.KeyValueExpr); ok {
 			if typ, ok := c.types.TypeOf(lit.Type).Underlying().(*types.Struct); ok {
-				maxFieldI := 0
-			outer:
+				c.computeFieldIndices(typ)
+				lastIndex := 0
 				for _, elt := range lit.Elts {
-					obj := c.types.ObjectOf(elt.(*ast.KeyValueExpr).Key.(*ast.Ident))
-					for fieldI, nFields := 0, typ.NumFields(); fieldI < nFields; fieldI++ {
-						if typ.Field(fieldI) == obj {
-							if fieldI >= maxFieldI {
-								maxFieldI = fieldI
-							} else {
-								c.errorf(lit.Pos(), "struct literal fields must appear in definition order")
-								break outer
-							}
-							break
-						}
+					field := c.types.ObjectOf(elt.(*ast.KeyValueExpr).Key.(*ast.Ident)).(*types.Var)
+					if index := c.fieldIndices[field]; index < lastIndex {
+						c.errorf(lit.Pos(), "struct literal fields must appear in definition order")
+						break
+					} else {
+						lastIndex = index
 					}
 				}
 			}
@@ -532,6 +541,7 @@ func (c *Compiler) compile() {
 	}
 
 	// Initialize maps
+	c.fieldIndices = make(map[*types.Var]int)
 	c.genTypeNames = make(map[types.Type]string)
 	c.genTypeDecls = make(map[*ast.TypeSpec]string)
 	c.genTypeDefns = make(map[*ast.TypeSpec]string)
