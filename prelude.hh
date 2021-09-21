@@ -5,12 +5,20 @@
 // Print
 //
 
+inline void print(bool val) {
+  std::printf(val ? "true": "false");
+}
+
 inline void print(int val) {
   std::printf("%d", val);
 }
 
-inline void print(bool val) {
-  std::printf(val ? "true": "false");
+inline void print(float val) {
+  std::printf("%f", val);
+}
+
+inline void print(double val) {
+  std::printf("%f", val);
 }
 
 inline void print(const char *val) {
