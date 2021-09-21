@@ -225,6 +225,26 @@ func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
 	c.writeExpr(lit.Type)
 	c.write(" {")
 	if len(lit.Elts) > 0 {
+		if _, ok := lit.Elts[0].(*ast.KeyValueExpr); ok {
+			if typ, ok := c.types.TypeOf(lit.Type).Underlying().(*types.Struct); ok {
+				maxFieldI := 0
+			outer:
+				for _, elt := range lit.Elts {
+					obj := c.types.ObjectOf(elt.(*ast.KeyValueExpr).Key.(*ast.Ident))
+					for fieldI, nFields := 0, typ.NumFields(); fieldI < nFields; fieldI++ {
+						if typ.Field(fieldI) == obj {
+							if fieldI >= maxFieldI {
+								maxFieldI = fieldI
+							} else {
+								c.errorf(lit.Pos(), "struct literal fields must appear in definition order")
+								break outer
+							}
+							break
+						}
+					}
+				}
+			}
+		}
 		if c.fileSet.Position(lit.Pos()).Line == c.fileSet.Position(lit.Elts[0].Pos()).Line {
 			c.write(" ")
 			for i, elt := range lit.Elts {
