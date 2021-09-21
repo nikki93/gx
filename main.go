@@ -21,7 +21,7 @@ type Compiler struct {
 	types   *types.Info
 
 	fieldIndices map[*types.Var]int
-	genTypeNames map[types.Type]string // Should we use `typeutil.Map` (equivalence-based keys)?
+	genTypeNames map[types.Type]string
 	genTypeDecls map[*ast.TypeSpec]string
 	genTypeDefns map[*ast.TypeSpec]string
 	genFuncDecls map[*ast.FuncDecl]string
