@@ -238,8 +238,12 @@ func testGenerics() {
 	{
 		i := Item[int]{42}
 		assert(i.item == 42)
-		f := Item[float64]{42}
-		assert(f.item == 42)
+		p := Item[Point]{Point{1, 2}}
+		assert(p.item.x == 1)
+		assert(p.item.y == 2)
+		p.item.setZero()
+		assert(p.item.x == 0)
+		assert(p.item.y == 0)
 	}
 }
 
