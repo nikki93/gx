@@ -21,7 +21,7 @@ type Compiler struct {
 	types   *types.Info
 
 	fieldIndices map[*types.Var]int
-	genTypeNames map[types.Type]string
+	genTypeExprs map[types.Type]string
 	genTypeDecls map[*ast.TypeSpec]string
 	genTypeDefns map[*ast.TypeSpec]string
 	genFuncDecls map[*ast.FuncDecl]string
@@ -73,8 +73,8 @@ func (c *Compiler) computeFieldIndices(typ *types.Struct) {
 	}
 }
 
-func (c *Compiler) genTypeName(typ types.Type, pos token.Pos) string {
-	if result, ok := c.genTypeNames[typ]; ok {
+func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
+	if result, ok := c.genTypeExprs[typ]; ok {
 		return result
 	} else {
 		builder := &strings.Builder{}
@@ -93,9 +93,9 @@ func (c *Compiler) genTypeName(typ types.Type, pos token.Pos) string {
 				c.errorf(pos, "type not supported")
 			}
 		case *types.Pointer:
-			elemTypeName := c.genTypeName(typ.Elem(), pos)
-			builder.WriteString(elemTypeName)
-			if elemTypeName == "" || elemTypeName[len(elemTypeName)-1] != '*' {
+			elemTypeExpr := c.genTypeExpr(typ.Elem(), pos)
+			builder.WriteString(elemTypeExpr)
+			if elemTypeExpr == "" || elemTypeExpr[len(elemTypeExpr)-1] != '*' {
 				builder.WriteByte(' ')
 			}
 			builder.WriteByte('*')
@@ -107,7 +107,7 @@ func (c *Compiler) genTypeName(typ types.Type, pos token.Pos) string {
 					if i > 0 {
 						builder.WriteString(", ")
 					}
-					builder.WriteString(c.genTypeName(typeArgs.At(i), pos))
+					builder.WriteString(c.genTypeExpr(typeArgs.At(i), pos))
 				}
 				builder.WriteString(">")
 			}
@@ -117,7 +117,7 @@ func (c *Compiler) genTypeName(typ types.Type, pos token.Pos) string {
 			c.errorf(pos, "type not supported")
 		}
 		result = builder.String()
-		c.genTypeNames[typ] = result
+		c.genTypeExprs[typ] = result
 		return result
 	}
 }
@@ -168,10 +168,10 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 			builder.WriteString(" {\n")
 			for _, field := range typ.Fields.List {
 				if typ := c.types.TypeOf(field.Type); typ != nil {
-					typeName := c.genTypeName(typ, field.Type.Pos())
+					typeExpr := c.genTypeExpr(typ, field.Type.Pos())
 					for _, fieldName := range field.Names {
 						builder.WriteString("  ")
-						builder.WriteString(typeName)
+						builder.WriteString(typeExpr)
 						builder.WriteByte(' ')
 						builder.WriteString(fieldName.String())
 						builder.WriteString(";\n")
@@ -228,7 +228,7 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 			}
 		} else {
 			sigResult := sigResults.At(0)
-			builder.WriteString(c.genTypeName(sigResult.Type(), sigResult.Pos()))
+			builder.WriteString(c.genTypeExpr(sigResult.Type(), sigResult.Pos()))
 			builder.WriteByte(' ')
 		}
 
@@ -238,9 +238,9 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 		// Parameters
 		builder.WriteByte('(')
 		addParam := func(param *types.Var) {
-			typeName := c.genTypeName(param.Type(), param.Pos())
-			builder.WriteString(typeName)
-			if typeName == "" || typeName[len(typeName)-1] != '*' {
+			typeExpr := c.genTypeExpr(param.Type(), param.Pos())
+			builder.WriteString(typeExpr)
+			if typeExpr == "" || typeExpr[len(typeExpr)-1] != '*' {
 				builder.WriteByte(' ')
 			}
 			builder.WriteString(param.Name())
@@ -280,7 +280,7 @@ func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 }
 
 func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
-	c.write(c.genTypeName(c.types.TypeOf(lit.Type), lit.Type.Pos()))
+	c.write(c.genTypeExpr(c.types.TypeOf(lit.Type), lit.Type.Pos()))
 	c.write(" {")
 	if len(lit.Elts) > 0 {
 		if _, ok := lit.Elts[0].(*ast.KeyValueExpr); ok {
@@ -586,7 +586,7 @@ func (c *Compiler) compile() {
 
 	// Initialize maps
 	c.fieldIndices = make(map[*types.Var]int)
-	c.genTypeNames = make(map[types.Type]string)
+	c.genTypeExprs = make(map[types.Type]string)
 	c.genTypeDecls = make(map[*ast.TypeSpec]string)
 	c.genTypeDefns = make(map[*ast.TypeSpec]string)
 	c.genFuncDecls = make(map[*ast.FuncDecl]string)
