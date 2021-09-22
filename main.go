@@ -510,7 +510,7 @@ func (c *Compiler) writeIfStmt(ifStmt *ast.IfStmt) {
 	c.write("if (")
 	if ifStmt.Init != nil {
 		c.writeStmt(ifStmt.Init)
-		c.write(" ")
+		c.write("; ")
 	}
 	c.writeExpr(ifStmt.Cond)
 	c.write(") ")

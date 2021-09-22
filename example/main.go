@@ -36,6 +36,14 @@ func testVariables() {
 	assert(x == 5)
 }
 
+func testIf() {
+	x := 0
+	if cond := false; cond {
+		x = 2
+	}
+	assert(x == 0)
+}
+
 func testFor() {
 	{
 		sum := 0
