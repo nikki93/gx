@@ -696,7 +696,6 @@ func main() {
 	if c.errored() {
 		fmt.Println(c.errors)
 	} else {
-		fmt.Println(c.output)
 		ioutil.WriteFile("output.cc", []byte(c.output.String()), fs.ModePerm)
 	}
 }

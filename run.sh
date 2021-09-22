@@ -29,15 +29,16 @@ case "$1" in
   # Desktop
   release)
     $GO build main.go
+    rm -rf output.cc
     $TIME ./main
     rm main
     if [[ -f output.cc ]]; then
       $CLANG -std=c++17 -Wall -O3 -o output output.cc || true
-      rm -f output.cc
     fi
     if [[ -f output ]]; then
       ./output || true
       rm output
     fi
+    exit 1
     ;;
 esac
