@@ -90,7 +90,7 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 			case types.Float64:
 				builder.WriteString("double")
 			default:
-				c.errorf(pos, "type not supported")
+				c.errorf(pos, "%s not supported", typ.String())
 			}
 		case *types.Pointer:
 			elemTypeExpr := c.genTypeExpr(typ.Elem(), pos)
@@ -114,7 +114,7 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 		case *types.TypeParam:
 			builder.WriteString(typ.Obj().Name())
 		default:
-			c.errorf(pos, "type not supported")
+			c.errorf(pos, "%s not supported", typ.String())
 		}
 		result = builder.String()
 		c.genTypeExprs[typ] = result
