@@ -362,6 +362,18 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 	}
 	if !method {
 		c.writeExpr(call.Fun)
+		if ident, ok := call.Fun.(*ast.Ident); ok {
+			if typeArgs := c.types.Instances[ident].TypeArgs; typeArgs != nil {
+				c.write("<")
+				for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
+					if i > 0 {
+						c.write(", ")
+					}
+					c.write(c.genTypeExpr(typeArgs.At(i), call.Fun.Pos()))
+				}
+				c.write(">")
+			}
+		}
 		c.write("(")
 	}
 	for i, arg := range call.Args {
@@ -611,6 +623,7 @@ func (c *Compiler) compile() {
 	// Type-check
 	c.types = &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
+		Instances:  make(map[*ast.Ident]types.Instance),
 		Defs:       make(map[*ast.Ident]types.Object),
 		Uses:       make(map[*ast.Ident]types.Object),
 		Implicits:  make(map[ast.Node]types.Object),

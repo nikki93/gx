@@ -241,7 +241,7 @@ func testGenerics() {
 
 		f := Item[float64]{42}
 		assert(f.item == 42)
-		assert(add(f.item, 20.0) == 62)
+		assert(add(f.item, 20) == 62)
 
 		p := Item[Point]{Point{1, 2}}
 		assert(p.item.x == 1)
