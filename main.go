@@ -395,6 +395,9 @@ func (c *Compiler) writeUnaryExpr(un *ast.UnaryExpr) {
 	case token.ADD, token.SUB, token.NOT:
 		c.write(op.String())
 	case token.AND:
+		if !c.types.Types[un.X].Addressable() {
+			c.errorf(un.OpPos, "cannot take address of a temporary object")
+		}
 		c.write(op.String())
 	default:
 		c.errorf(un.OpPos, "unsupported unary operator")
