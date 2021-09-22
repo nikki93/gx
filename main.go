@@ -101,6 +101,8 @@ func (c *Compiler) genTypeName(typ types.Type, pos token.Pos) string {
 			builder.WriteByte('*')
 		case *types.Named:
 			builder.WriteString(typ.String())
+		case *types.TypeParam:
+			builder.WriteString(typ.Obj().Name())
 		default:
 			c.errorf(pos, "type not supported")
 		}
@@ -119,6 +121,8 @@ func (c *Compiler) genTypeDecl(typeSpec *ast.TypeSpec) string {
 		case *ast.StructType:
 			builder.WriteString("struct ")
 			builder.WriteString(typeSpec.Name.String())
+		case *ast.InterfaceType:
+			// Nothing to do -- only used as generic constraint during typecheck
 		default:
 			c.errorf(typeSpec.Type.Pos(), "type not supported")
 		}
@@ -150,6 +154,8 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 				}
 			}
 			builder.WriteByte('}')
+		case *ast.InterfaceType:
+			// Nothing to do -- only used as generic constraint during typecheck
 		default:
 			c.errorf(typeSpec.Type.Pos(), "type not supported")
 		}
@@ -174,6 +180,19 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 		}
 
 		builder := &strings.Builder{}
+
+		// Type parameters
+		if typeParams := sig.TypeParams(); typeParams != nil {
+			builder.WriteString("template<")
+			for i, nTypeParams := 0, typeParams.Len(); i < nTypeParams; i++ {
+				if i > 0 {
+					builder.WriteString(", ")
+				}
+				builder.WriteString("typename ")
+				builder.WriteString(typeParams.At(i).Obj().Name())
+			}
+			builder.WriteString(">\n")
+		}
 
 		// Return type
 		if sigResults.Len() == 0 {
@@ -620,16 +639,20 @@ func (c *Compiler) compile() {
 	// Type declarations
 	c.write("\n\n")
 	for _, typeSpec := range typeSpecs {
-		c.write(c.genTypeDecl(typeSpec))
-		c.write(";\n")
+		if typeDecl := c.genTypeDecl(typeSpec); typeDecl != "" {
+			c.write(typeDecl)
+			c.write(";\n")
+		}
 	}
 
 	// Type definitions
 	c.write("\n")
 	for _, typeSpec := range typeSpecs {
-		c.write("\n")
-		c.write(c.genTypeDefn(typeSpec))
-		c.write(";\n")
+		if typeDefn := c.genTypeDefn(typeSpec); typeDefn != "" {
+			c.write("\n")
+			c.write(typeDefn)
+			c.write(";\n")
+		}
 	}
 
 	// Function declarations

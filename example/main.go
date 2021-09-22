@@ -186,6 +186,23 @@ func testMethod() {
 }
 
 //
+// Generics
+//
+
+type Numeric interface {
+	int | float64
+}
+
+func add[T Numeric](a, b T) T {
+	return a + b
+}
+
+func testGenerics() {
+	assert(add(1, 2) == 3)
+	assert(add(1.2, 2.2) == 1.2+2.2)
+}
+
+//
 // Main
 //
 
@@ -197,4 +214,5 @@ func main() {
 	testPointer()
 	testStruct()
 	testMethod()
+	testGenerics()
 }
