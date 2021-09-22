@@ -107,7 +107,7 @@ func setXToFortyTwo(o *Outer) {
 	o.x = 42
 }
 
-type DoublePtr struct {
+type PtrPtr struct {
 	pp **int // Should be formatted as `int **pp;` in C++
 }
 
@@ -164,7 +164,7 @@ func testStruct() {
 		i := 42
 		p := &i
 		pp := &p
-		d := DoublePtr{pp}
+		d := PtrPtr{pp}
 		**d.pp = 14
 		assert(i == 14)
 	}
