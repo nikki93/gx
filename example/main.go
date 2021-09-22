@@ -197,9 +197,21 @@ func add[T Numeric](a, b T) T {
 	return a + b
 }
 
+type Item[T any] struct {
+	item T
+}
+
 func testGenerics() {
-	assert(add(1, 2) == 3)
-	assert(add(1.2, 2.2) == 1.2+2.2)
+	{
+		assert(add(1, 2) == 3)
+		assert(add(1.2, 2.0) == 3.2)
+	}
+	{
+		i := Item[int]{42}
+		assert(i.item == 42)
+		f := Item[float64]{42}
+		assert(f.item == 42)
+	}
 }
 
 //

@@ -100,7 +100,17 @@ func (c *Compiler) genTypeName(typ types.Type, pos token.Pos) string {
 			}
 			builder.WriteByte('*')
 		case *types.Named:
-			builder.WriteString(typ.String())
+			builder.WriteString(typ.Obj().Name())
+			if typeArgs := typ.TypeArgs(); typeArgs != nil {
+				builder.WriteString("<")
+				for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
+					if i > 0 {
+						builder.WriteString(", ")
+					}
+					builder.WriteString(c.genTypeName(typeArgs.At(i), pos))
+				}
+				builder.WriteString(">")
+			}
 		case *types.TypeParam:
 			builder.WriteString(typ.Obj().Name())
 		default:
@@ -117,6 +127,21 @@ func (c *Compiler) genTypeDecl(typeSpec *ast.TypeSpec) string {
 		return result
 	} else {
 		builder := &strings.Builder{}
+		if typeSpec.TypeParams != nil {
+			builder.WriteString("template<")
+			first := true
+			for _, typeParam := range typeSpec.TypeParams.List {
+				for _, name := range typeParam.Names {
+					if !first {
+						builder.WriteString(", ")
+					}
+					first = false
+					builder.WriteString("typename ")
+					builder.WriteString(name.String())
+				}
+			}
+			builder.WriteString(">\n")
+		}
 		switch typeSpec.Type.(type) {
 		case *ast.StructType:
 			builder.WriteString("struct ")
@@ -255,7 +280,7 @@ func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 }
 
 func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
-	c.writeExpr(lit.Type)
+	c.write(c.genTypeName(c.types.TypeOf(lit.Type), lit.Type.Pos()))
 	c.write(" {")
 	if len(lit.Elts) > 0 {
 		if _, ok := lit.Elts[0].(*ast.KeyValueExpr); ok {
