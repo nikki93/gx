@@ -148,6 +148,18 @@ func testStruct() {
 		assert(s.inner.z == 4)
 	}
 	{
+		s := Outer{
+			x: 2,
+			y: 3,
+			inner: Inner{
+				z: 4,
+			},
+		}
+		assert(s.x == 2)
+		assert(s.y == 3)
+		assert(s.inner.z == 4)
+	}
+	{
 		// Out-of-order elements in struct literal no longer allowed
 		//s := Outer{
 		//  inner: Inner{
@@ -156,9 +168,6 @@ func testStruct() {
 		//  y: 3,
 		//  x: 2,
 		//}
-		//assert(s.x == 2)
-		//assert(s.y == 3)
-		//assert(s.inner.z == 4)
 	}
 	{
 		i := 42
