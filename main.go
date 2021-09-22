@@ -95,7 +95,7 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 		case *types.Pointer:
 			elemTypeExpr := c.genTypeExpr(typ.Elem(), pos)
 			builder.WriteString(elemTypeExpr)
-			if elemTypeExpr == "" || elemTypeExpr[len(elemTypeExpr)-1] != '*' {
+			if elemTypeExpr[len(elemTypeExpr)-1] != '*' {
 				builder.WriteByte(' ')
 			}
 			builder.WriteByte('*')
@@ -172,7 +172,9 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 					for _, fieldName := range field.Names {
 						builder.WriteString("  ")
 						builder.WriteString(typeExpr)
-						builder.WriteByte(' ')
+						if typeExpr[len(typeExpr)-1] != '*' {
+							builder.WriteByte(' ')
+						}
 						builder.WriteString(fieldName.String())
 						builder.WriteString(";\n")
 					}
@@ -240,7 +242,7 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 		addParam := func(param *types.Var) {
 			typeExpr := c.genTypeExpr(param.Type(), param.Pos())
 			builder.WriteString(typeExpr)
-			if typeExpr == "" || typeExpr[len(typeExpr)-1] != '*' {
+			if typeExpr[len(typeExpr)-1] != '*' {
 				builder.WriteByte(' ')
 			}
 			builder.WriteString(param.Name())
