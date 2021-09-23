@@ -232,11 +232,11 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 		addTypeParams(sig.TypeParams())
 
 		// Return type
-		if results := sig.Results(); results.Len() > 1 {
+		if rets := sig.Results(); rets.Len() > 1 {
 			c.errorf(decl.Type.Results.Pos(), "multiple return values not supported")
-		} else if results.Len() == 1 {
-			sigResult := results.At(0)
-			builder.WriteString(c.genTypeExpr(sigResult.Type(), sigResult.Pos()))
+		} else if rets.Len() == 1 {
+			ret := rets.At(0)
+			builder.WriteString(c.genTypeExpr(ret.Type(), ret.Pos()))
 			builder.WriteByte(' ')
 		} else {
 			if decl.Name.String() == "main" && decl.Recv == nil {
@@ -505,9 +505,7 @@ func (c *Compiler) writeAssignStmt(assignStmt *ast.AssignStmt) {
 func (c *Compiler) writeReturnStmt(retStmt *ast.ReturnStmt) {
 	if len(retStmt.Results) > 1 {
 		c.errorf(retStmt.Results[0].Pos(), "multiple return values not supported")
-		return
-	}
-	if len(retStmt.Results) > 0 {
+	} else if len(retStmt.Results) == 1 {
 		c.write("return ")
 		c.writeExpr(retStmt.Results[0])
 	} else {
