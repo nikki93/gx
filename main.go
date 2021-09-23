@@ -200,7 +200,9 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 	if result, ok := c.genFuncDecls[decl]; ok {
 		return result
 	} else {
-		sig := c.types.Defs[decl.Name].Type().(*types.Signature)
+		obj := c.types.Defs[decl.Name]
+		sig := obj.Type().(*types.Signature)
+		recv := sig.Recv()
 
 		builder := &strings.Builder{}
 
@@ -218,8 +220,8 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 				builder.WriteString(">\n")
 			}
 		}
-		if sig.Recv() != nil {
-			switch recvType := sig.Recv().Type().(type) {
+		if recv != nil {
+			switch recvType := recv.Type().(type) {
 			case *types.Named:
 				addTypeParams(recvType.TypeParams())
 			case *types.Pointer:
@@ -239,7 +241,7 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 			builder.WriteString(c.genTypeExpr(ret.Type(), ret.Pos()))
 			builder.WriteByte(' ')
 		} else {
-			if decl.Name.String() == "main" && decl.Recv == nil {
+			if obj.Pkg().Name() == "main" && decl.Name.String() == "main" && recv == nil {
 				builder.WriteString("int ")
 			} else {
 				builder.WriteString("void ")
@@ -259,11 +261,11 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 			}
 			builder.WriteString(param.Name())
 		}
-		if sig.Recv() != nil {
-			addParam(sig.Recv())
+		if recv != nil {
+			addParam(recv)
 		}
 		for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
-			if i > 0 || sig.Recv() != nil {
+			if i > 0 || recv != nil {
 				builder.WriteString(", ")
 			}
 			addParam(sig.Params().At(i))
