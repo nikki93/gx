@@ -226,20 +226,20 @@ func add[T Numeric](a, b T) T {
 	return a + b
 }
 
-type Item[T any] struct {
+type Holder[T any] struct {
 	item T
 }
 
-func incrItem[T Numeric](i *Item[T]) {
-	i.item += 1
+func incrHolder[T Numeric](h *Holder[T]) {
+	h.item += 1
 }
 
-func (i Item[T]) get() T {
-	return i.item
+func (h Holder[T]) get() T {
+	return h.item
 }
 
-func (i *Item[T]) set(newItem T) {
-	i.item = newItem
+func (h *Holder[T]) set(item T) {
+	h.item = item
 }
 
 func testGenerics() {
@@ -248,18 +248,18 @@ func testGenerics() {
 		assert(add(1.2, 2.0) == 3.2)
 	}
 	{
-		i := Item[int]{42}
+		i := Holder[int]{42}
 		assert(i.item == 42)
-		incrItem(&i)
+		incrHolder(&i)
 		assert(i.item == 43)
 
-		f := Item[float64]{42}
+		f := Holder[float64]{42}
 		assert(f.item == 42)
 		assert(add(f.item, 20) == 62)
-		incrItem(&f)
+		incrHolder(&f)
 		assert(f.item == 43)
 
-		p := Item[Point]{Point{1, 2}}
+		p := Holder[Point]{Point{1, 2}}
 		assert(p.item.x == 1)
 		assert(p.item.y == 2)
 		p.item.setZero()
