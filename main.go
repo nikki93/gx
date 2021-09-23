@@ -201,10 +201,6 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 		return result
 	} else {
 		sig := c.types.Defs[decl.Name].Type().(*types.Signature)
-		sigResults := sig.Results()
-		if sigResults.Len() > 1 {
-			c.errorf(decl.Type.Results.Pos(), "multiple return values not supported")
-		}
 
 		builder := &strings.Builder{}
 
@@ -236,16 +232,18 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 		addTypeParams(sig.TypeParams())
 
 		// Return type
-		if sigResults.Len() == 0 {
+		if results := sig.Results(); results.Len() > 1 {
+			c.errorf(decl.Type.Results.Pos(), "multiple return values not supported")
+		} else if results.Len() == 1 {
+			sigResult := results.At(0)
+			builder.WriteString(c.genTypeExpr(sigResult.Type(), sigResult.Pos()))
+			builder.WriteByte(' ')
+		} else {
 			if decl.Name.String() == "main" && decl.Recv == nil {
 				builder.WriteString("int ")
 			} else {
 				builder.WriteString("void ")
 			}
-		} else {
-			sigResult := sigResults.At(0)
-			builder.WriteString(c.genTypeExpr(sigResult.Type(), sigResult.Pos()))
-			builder.WriteByte(' ')
 		}
 
 		// Name
