@@ -295,6 +295,26 @@ func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 	}
 }
 
+func (c *Compiler) writeFuncLit(lit *ast.FuncLit) {
+	sig := c.types.TypeOf(lit).(*types.Signature)
+	c.write("[&](")
+	for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
+		if i > 0 {
+			c.write(", ")
+		}
+		param := sig.Params().At(i)
+		typeExpr := c.genTypeExpr(param.Type(), param.Pos())
+		c.write(typeExpr)
+		if typeExpr[len(typeExpr)-1] != '*' {
+			c.write(" ")
+		}
+		c.write(param.Name())
+	}
+	c.write(") ")
+	c.writeBlockStmt(lit.Body)
+	c.atBlockEnd = false
+}
+
 func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
 	c.write(c.genTypeExpr(c.types.TypeOf(lit.Type), lit.Type.Pos()))
 	c.write(" {")
@@ -451,6 +471,8 @@ func (c *Compiler) writeExpr(expr ast.Expr) {
 		c.writeIdent(expr)
 	case *ast.BasicLit:
 		c.writeBasicLit(expr)
+	case *ast.FuncLit:
+		c.writeFuncLit(expr)
 	case *ast.CompositeLit:
 		c.writeCompositeLit(expr)
 	case *ast.ParenExpr:

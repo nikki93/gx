@@ -275,6 +275,22 @@ func testGenerics() {
 }
 
 //
+// Lambdas
+//
+
+func testLambdas() {
+	{
+		val := 42
+		assert(val == 42)
+		foo := func(newVal int) {
+			val = newVal
+		}
+		foo(14)
+		assert(val == 14)
+	}
+}
+
+//
 // Main
 //
 
@@ -287,4 +303,5 @@ func main() {
 	testStruct()
 	testMethod()
 	testGenerics()
+	testLambdas()
 }
