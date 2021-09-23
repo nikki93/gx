@@ -278,6 +278,12 @@ func testGenerics() {
 // Lambdas
 //
 
+func iterateOneToTen(f func(int)) {
+	for i := 1; i <= 10; i += 1 {
+		f(i)
+	}
+}
+
 func testLambdas() {
 	{
 		val := 42
@@ -287,10 +293,18 @@ func testLambdas() {
 		}
 		foo(14)
 		assert(val == 14)
+
 		val2 := func() int {
 			return val
 		}()
 		assert(val2 == val)
+	}
+	{
+		sum := 0
+		iterateOneToTen(func(i int) {
+			sum += i
+		})
+		assert(sum == 55)
 	}
 }
 

@@ -100,6 +100,7 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 			default:
 				c.errorf(pos, "%s not supported", typ.String())
 			}
+			builder.WriteByte(' ')
 		case *types.Pointer:
 			builder.WriteString(c.genTypeExpr(typ.Elem(), pos))
 			builder.WriteByte('*')
@@ -115,13 +116,14 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 				}
 				builder.WriteString(">")
 			}
+			builder.WriteByte(' ')
 		case *types.TypeParam:
 			builder.WriteString(typ.Obj().Name())
+			builder.WriteByte(' ')
+		case *types.Signature:
+			builder.WriteString("auto &&")
 		default:
 			c.errorf(pos, "%s not supported", typ.String())
-		}
-		if peek := builder.String(); len(peek) > 0 && peek[len(peek)-1] != '*' {
-			builder.WriteByte(' ')
 		}
 		result = builder.String()
 		c.genTypeExprs[typ] = result

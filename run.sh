@@ -33,7 +33,7 @@ case "$1" in
     $TIME ./main
     rm main
     if [[ -f output.cc ]]; then
-      $CLANG -std=c++17 -Wall -O3 -o output output.cc || true
+      $CLANG -std=c++20 -Wall -O3 -o output output.cc || true
     fi
     if [[ -f output ]]; then
       ./output || true
