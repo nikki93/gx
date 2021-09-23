@@ -56,6 +56,14 @@ func (c *Compiler) write(s string) {
 	c.output.WriteString(s)
 }
 
+func trimFinalSpace(s string) string {
+	if l := len(s); l > 0 && s[l-1] == ' ' {
+		return s[0 : l-1]
+	} else {
+		return s
+	}
+}
+
 //
 // Types
 //
@@ -93,11 +101,7 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 				c.errorf(pos, "%s not supported", typ.String())
 			}
 		case *types.Pointer:
-			elemTypeExpr := c.genTypeExpr(typ.Elem(), pos)
-			builder.WriteString(elemTypeExpr)
-			if elemTypeExpr[len(elemTypeExpr)-1] != '*' {
-				builder.WriteByte(' ')
-			}
+			builder.WriteString(c.genTypeExpr(typ.Elem(), pos))
 			builder.WriteByte('*')
 		case *types.Named:
 			builder.WriteString(typ.Obj().Name())
@@ -107,7 +111,7 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 					if i > 0 {
 						builder.WriteString(", ")
 					}
-					builder.WriteString(c.genTypeExpr(typeArgs.At(i), pos))
+					builder.WriteString(trimFinalSpace(c.genTypeExpr(typeArgs.At(i), pos)))
 				}
 				builder.WriteString(">")
 			}
@@ -115,6 +119,9 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 			builder.WriteString(typ.Obj().Name())
 		default:
 			c.errorf(pos, "%s not supported", typ.String())
+		}
+		if peek := builder.String(); len(peek) > 0 && peek[len(peek)-1] != '*' {
+			builder.WriteByte(' ')
 		}
 		result = builder.String()
 		c.genTypeExprs[typ] = result
@@ -172,9 +179,6 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 					for _, fieldName := range field.Names {
 						builder.WriteString("  ")
 						builder.WriteString(typeExpr)
-						if typeExpr[len(typeExpr)-1] != '*' {
-							builder.WriteByte(' ')
-						}
 						builder.WriteString(fieldName.String())
 						builder.WriteString(";\n")
 					}
@@ -239,7 +243,6 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 		} else if rets.Len() == 1 {
 			ret := rets.At(0)
 			builder.WriteString(c.genTypeExpr(ret.Type(), ret.Pos()))
-			builder.WriteByte(' ')
 		} else {
 			if obj.Pkg().Name() == "main" && decl.Name.String() == "main" && recv == nil {
 				builder.WriteString("int ")
@@ -254,11 +257,7 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 		// Parameters
 		builder.WriteByte('(')
 		addParam := func(param *types.Var) {
-			typeExpr := c.genTypeExpr(param.Type(), param.Pos())
-			builder.WriteString(typeExpr)
-			if typeExpr[len(typeExpr)-1] != '*' {
-				builder.WriteByte(' ')
-			}
+			builder.WriteString(c.genTypeExpr(param.Type(), param.Pos()))
 			builder.WriteString(param.Name())
 		}
 		if recv != nil {
@@ -303,11 +302,7 @@ func (c *Compiler) writeFuncLit(lit *ast.FuncLit) {
 			c.write(", ")
 		}
 		param := sig.Params().At(i)
-		typeExpr := c.genTypeExpr(param.Type(), param.Pos())
-		c.write(typeExpr)
-		if typeExpr[len(typeExpr)-1] != '*' {
-			c.write(" ")
-		}
+		c.write(c.genTypeExpr(param.Type(), param.Pos()))
 		c.write(param.Name())
 	}
 	c.write(") ")
@@ -317,7 +312,7 @@ func (c *Compiler) writeFuncLit(lit *ast.FuncLit) {
 
 func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
 	c.write(c.genTypeExpr(c.types.TypeOf(lit.Type), lit.Type.Pos()))
-	c.write(" {")
+	c.write("{")
 	if len(lit.Elts) > 0 {
 		if _, ok := lit.Elts[0].(*ast.KeyValueExpr); ok {
 			if typ, ok := c.types.TypeOf(lit.Type).Underlying().(*types.Struct); ok {
@@ -403,7 +398,7 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 					if i > 0 {
 						c.write(", ")
 					}
-					c.write(c.genTypeExpr(typeArgs.At(i), call.Fun.Pos()))
+					c.write(trimFinalSpace(c.genTypeExpr(typeArgs.At(i), call.Fun.Pos())))
 				}
 				c.write(">")
 			}
