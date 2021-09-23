@@ -230,6 +230,18 @@ type Item[T any] struct {
 	item T
 }
 
+func incrItem[T Numeric](i *Item[T]) {
+	i.item += 1
+}
+
+func (i Item[T]) get() T {
+	return i.item
+}
+
+func (i *Item[T]) set(newItem T) {
+	i.item = newItem
+}
+
 func testGenerics() {
 	{
 		assert(add(1, 2) == 3)
@@ -238,10 +250,14 @@ func testGenerics() {
 	{
 		i := Item[int]{42}
 		assert(i.item == 42)
+		incrItem(&i)
+		assert(i.item == 43)
 
 		f := Item[float64]{42}
 		assert(f.item == 42)
 		assert(add(f.item, 20) == 62)
+		incrItem(&f)
+		assert(f.item == 43)
 
 		p := Item[Point]{Point{1, 2}}
 		assert(p.item.x == 1)
@@ -249,6 +265,12 @@ func testGenerics() {
 		p.item.setZero()
 		assert(p.item.x == 0)
 		assert(p.item.y == 0)
+
+		p.set(Point{3, 2})
+		assert(p.item.x == 3)
+		assert(p.item.y == 2)
+		assert(p.get().x == 3)
+		assert(p.get().y == 2)
 	}
 }
 

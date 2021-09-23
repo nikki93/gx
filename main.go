@@ -209,17 +209,31 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 		builder := &strings.Builder{}
 
 		// Type parameters
-		if typeParams := sig.TypeParams(); typeParams != nil {
-			builder.WriteString("template<")
-			for i, nTypeParams := 0, typeParams.Len(); i < nTypeParams; i++ {
-				if i > 0 {
-					builder.WriteString(", ")
+		addTypeParams := func(typeParams *types.TypeParamList) {
+			if typeParams != nil {
+				builder.WriteString("template<")
+				for i, nTypeParams := 0, typeParams.Len(); i < nTypeParams; i++ {
+					if i > 0 {
+						builder.WriteString(", ")
+					}
+					builder.WriteString("typename ")
+					builder.WriteString(typeParams.At(i).Obj().Name())
 				}
-				builder.WriteString("typename ")
-				builder.WriteString(typeParams.At(i).Obj().Name())
+				builder.WriteString(">\n")
 			}
-			builder.WriteString(">\n")
 		}
+		if sig.Recv() != nil {
+			switch recvType := sig.Recv().Type().(type) {
+			case *types.Named:
+				addTypeParams(recvType.TypeParams())
+			case *types.Pointer:
+				switch elemType := recvType.Elem().(type) {
+				case *types.Named:
+					addTypeParams(elemType.TypeParams())
+				}
+			}
+		}
+		addTypeParams(sig.TypeParams())
 
 		// Return type
 		if sigResults.Len() == 0 {
