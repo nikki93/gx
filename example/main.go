@@ -287,6 +287,10 @@ func testLambdas() {
 		}
 		foo(14)
 		assert(val == 14)
+		val2 := func() int {
+			return val
+		}()
+		assert(val2 == val)
 	}
 }
 
