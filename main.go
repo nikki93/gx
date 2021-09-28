@@ -6,7 +6,6 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
-	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -779,6 +778,6 @@ func main() {
 	if c.errored() {
 		fmt.Println(c.errors)
 	} else {
-		ioutil.WriteFile(outputPath, []byte(c.output.String()), fs.ModePerm)
+		ioutil.WriteFile(outputPath, []byte(c.output.String()), 0644)
 	}
 }
