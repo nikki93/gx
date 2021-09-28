@@ -29,11 +29,11 @@ case "$1" in
   # Desktop
   release)
     $GO build main.go
-    rm -rf output.cc
-    $TIME ./main example output.cc
+    rm -rf example.gx.cc
+    $TIME ./main example example.gx.cc
     rm main
-    if [[ -f output.cc ]]; then
-      $CLANG -std=c++20 -Wall -O3 -o output output.cc || true
+    if [[ -f example.gx.cc ]]; then
+      $CLANG -std=c++20 -Wall -O3 -o output example.gx.cc || true
     fi
     if [[ -f output ]]; then
       ./output || true

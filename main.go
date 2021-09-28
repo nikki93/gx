@@ -765,7 +765,7 @@ func (c *Compiler) compile() {
 func main() {
 	// Arguments
 	if len(os.Args) != 3 {
-		fmt.Println("usage: gx <input_directory> <output_file.cc>")
+		fmt.Println("usage: gx <input_directory> <output_file>")
 		return
 	}
 	directoryPath := os.Args[1]
