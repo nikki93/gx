@@ -316,6 +316,7 @@ func main() {
 	testFib()
 	testUnary()
 	testVariables()
+	testIf()
 	testFor()
 	testPointer()
 	testStruct()
