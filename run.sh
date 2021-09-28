@@ -28,10 +28,10 @@ GO="$TIME $GO"
 case "$1" in
   # Desktop
   release)
-    $GO build main.go
+    $GO build gx.go
     rm -rf example.gx.cc
-    $TIME ./main example example.gx.cc
-    rm main
+    $TIME ./gx example example.gx.cc
+    rm gx
     if [[ -f example.gx.cc ]]; then
       $CLANG -std=c++20 -Wall -O3 -o output example.gx.cc || true
     fi
