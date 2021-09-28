@@ -670,7 +670,7 @@ func (c *Compiler) compile() {
 	}
 
 	// `#include`s
-	c.write("#include \"prelude.hh\"\n")
+	c.write("#include \"gx.hh\"\n")
 
 	// Collect type specs
 	var typeSpecs []*ast.TypeSpec
