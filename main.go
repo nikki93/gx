@@ -8,6 +8,7 @@ import (
 	"go/types"
 	"io/fs"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -762,14 +763,22 @@ func (c *Compiler) compile() {
 //
 
 func main() {
+	// Arguments
+	if len(os.Args) != 3 {
+		fmt.Println("usage: gx <input_directory> <output_file.cc>")
+		return
+	}
+	directoryPath := os.Args[1]
+	outputPath := os.Args[2]
+
 	// Compile
-	c := Compiler{directoryPath: "example"}
+	c := Compiler{directoryPath: directoryPath}
 	c.compile()
 
 	// Print output
 	if c.errored() {
 		fmt.Println(c.errors)
 	} else {
-		ioutil.WriteFile("output.cc", []byte(c.output.String()), fs.ModePerm)
+		ioutil.WriteFile(outputPath, []byte(c.output.String()), fs.ModePerm)
 	}
 }

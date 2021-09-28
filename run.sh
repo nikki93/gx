@@ -30,7 +30,7 @@ case "$1" in
   release)
     $GO build main.go
     rm -rf output.cc
-    $TIME ./main
+    $TIME ./main example output.cc
     rm main
     if [[ -f output.cc ]]; then
       $CLANG -std=c++20 -Wall -O3 -o output output.cc || true
