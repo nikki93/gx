@@ -6,7 +6,7 @@
 //
 
 inline void print(bool val) {
-  std::printf(val ? "true": "false");
+  std::printf(val ? "true" : "false");
 }
 
 inline void print(int val) {
@@ -32,7 +32,7 @@ void print(A &a, B &&b, Args &&...args) {
   (print(args), ...);
 }
 
-template<typename ...Args>
+template<typename... Args>
 void println(Args &&...args) {
   print(args...);
   print("\n");
