@@ -356,6 +356,10 @@ func testSlices() {
 		check(len(s) == 3)
 		check(s[2] == 42)
 	}
+	{
+		s := []int{1, 2, 3}
+		check(len(s) == 3)
+	}
 }
 
 //
@@ -377,6 +381,10 @@ func testSeqs() {
 		check(len(s) == 2)
 		check(s[0] == 1)
 		check(s[1] == 2)
+	}
+	{
+		s := Seq[int]{1, 2, 3}
+		check(len(s) == 3)
 	}
 }
 

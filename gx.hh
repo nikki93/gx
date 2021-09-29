@@ -70,6 +70,12 @@ template<typename T>
 struct Slice {
   std::vector<T> data;
 
+  Slice() = default;
+
+  Slice(std::initializer_list<T> l)
+      : data(l) {
+  }
+
   T &operator[](int i) {
     return data[i];
   }
