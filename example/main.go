@@ -452,8 +452,8 @@ type Increr[T any] interface {
 }
 
 func incrSeq[T any, PT Increr[T]](s *Seq[T]) {
-	for _, elem := range *s {
-		PT(&elem).incr()
+	for i := range *s {
+		PT(&(*s)[i]).incr()
 	}
 }
 
