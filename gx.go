@@ -219,6 +219,13 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 // Functions
 //
 
+var sizes = types.SizesFor("gc", "wasm")
+
+func sizeOf(typ types.Type) int64 {
+	defer func() { recover() }()
+	return sizes.Sizeof(typ)
+}
+
 func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 	if result, ok := c.genFuncDecls[decl]; ok {
 		return result
@@ -282,6 +289,9 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 				c.errorf(param.Pos(), "cannot pass array by value, use pointer to array *%s instead", typ)
 			case *types.Slice:
 				c.errorf(param.Pos(), "cannot pass slice by value, use pointer to slice *%s instead", typ)
+			}
+			if size := sizeOf(typ); size > 96 {
+				c.errorf(param.Pos(), "%s is large (%d bytes), consider passing by pointer instead", typ, size)
 			}
 			builder.WriteString(c.genTypeExpr(typ, param.Pos()))
 			builder.WriteString(param.Name())
