@@ -333,6 +333,14 @@ func testArrays() {
 		arr := [...]int{1, 2, 3, 4, 5}
 		check(len(arr) == 5)
 	}
+	{
+		arr := [...][2]int{{1, 2}, {3, 4}}
+		check(len(arr) == 2)
+		check(arr[0][0] == 1)
+		check(arr[0][1] == 2)
+		check(arr[1][0] == 3)
+		check(arr[1][1] == 4)
+	}
 }
 
 //
