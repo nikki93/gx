@@ -806,15 +806,18 @@ func (c *Compiler) compile() {
 
 	// Type declarations
 	c.write("\n\n")
+	c.write("//\n// Type declarations\n//\n")
 	for _, typeSpec := range typeSpecs {
 		if typeDecl := c.genTypeDecl(typeSpec); typeDecl != "" {
+			c.write("\n")
 			c.write(typeDecl)
 			c.write(";\n")
 		}
 	}
 
 	// Type definitions
-	c.write("\n")
+	c.write("\n\n")
+	c.write("//\n// Type definitions\n//\n")
 	for _, typeSpec := range typeSpecs {
 		if typeDefn := c.genTypeDefn(typeSpec); typeDefn != "" {
 			c.write("\n")
@@ -825,6 +828,7 @@ func (c *Compiler) compile() {
 
 	// Function declarations
 	c.write("\n\n")
+	c.write("//\n// Function declarations\n//\n\n")
 	for _, file := range c.files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
@@ -835,7 +839,8 @@ func (c *Compiler) compile() {
 	}
 
 	// Function definitions
-	c.write("\n")
+	c.write("\n\n")
+	c.write("//\n// Function definitions\n//\n")
 	for _, file := range c.files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
