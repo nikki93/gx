@@ -121,8 +121,6 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 		case *types.TypeParam:
 			builder.WriteString(typ.Obj().Name())
 			builder.WriteByte(' ')
-		case *types.Signature:
-			builder.WriteString("auto &&")
 		case *types.Array:
 			builder.WriteString("gx::Array<")
 			builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
@@ -194,10 +192,6 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 			builder.WriteString(" {\n")
 			for _, field := range typ.Fields.List {
 				if typ := c.types.TypeOf(field.Type); typ != nil {
-					if _, ok := typ.(*types.Signature); ok {
-						c.errorf(field.Type.Pos(), "struct field of function type unsupported")
-						continue
-					}
 					typeExpr := c.genTypeExpr(typ, field.Type.Pos())
 					for _, fieldName := range field.Names {
 						builder.WriteString("  ")
@@ -287,7 +281,11 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 			case *types.Slice:
 				c.errorf(param.Pos(), "cannot pass slice by value, use pointer to slice *%s instead", typ)
 			}
-			builder.WriteString(c.genTypeExpr(typ, param.Pos()))
+			if _, ok := typ.(*types.Signature); ok {
+				builder.WriteString("auto &&")
+			} else {
+				builder.WriteString(c.genTypeExpr(typ, param.Pos()))
+			}
 			builder.WriteString(param.Name())
 		}
 		if recv != nil {
