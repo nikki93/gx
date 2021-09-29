@@ -871,6 +871,7 @@ func main() {
 	// Print output
 	if c.errored() {
 		fmt.Println(c.errors)
+		os.Exit(1)
 	} else {
 		ioutil.WriteFile(outputPath, []byte(c.output.String()), 0644)
 	}
