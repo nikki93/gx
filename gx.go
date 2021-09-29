@@ -806,10 +806,9 @@ func (c *Compiler) compile() {
 
 	// Type declarations
 	c.write("\n\n")
-	c.write("//\n// Type declarations\n//\n")
+	c.write("//\n// Type declarations\n//\n\n")
 	for _, typeSpec := range typeSpecs {
 		if typeDecl := c.genTypeDecl(typeSpec); typeDecl != "" {
-			c.write("\n")
 			c.write(typeDecl)
 			c.write(";\n")
 		}
