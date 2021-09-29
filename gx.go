@@ -630,17 +630,41 @@ func (c *Compiler) writeRangeStmt(rangeStmt *ast.RangeStmt) {
 	if rangeStmt.Tok == token.ASSIGN {
 		c.errorf(rangeStmt.Pos(), "must use := in for-range")
 	}
+	var key *ast.Ident
+	if rangeStmt.Key != nil {
+		if ident, ok := rangeStmt.Key.(*ast.Ident); ok && ident.Name != "_" {
+			key = ident
+		}
+	}
 	c.write("for (")
+	if key != nil {
+		c.write("auto ")
+		c.writeIdent(key)
+		c.write(" = -1; ")
+	}
 	c.write("auto &")
 	if rangeStmt.Value != nil {
 		c.writeExpr(rangeStmt.Value)
 	} else {
-		c.write("_ [[maybe_unused]]")
+		if ident, ok := rangeStmt.Value.(*ast.Ident); ok && ident.Name != "_" {
+			c.writeIdent(ident)
+		} else {
+			c.write("_ [[maybe_unused]]")
+		}
 	}
 	c.write(" : ")
 	c.writeExpr(rangeStmt.X)
-	c.write(")")
-	c.writeStmt(rangeStmt.Body)
+	c.write(") {\n")
+	c.indent++
+	if key != nil {
+		c.write("++")
+		c.writeIdent(key)
+		c.write(";\n")
+	}
+	c.writeStmtList(rangeStmt.Body.List)
+	c.indent--
+	c.write("}")
+	c.atBlockEnd = true
 }
 
 func (c *Compiler) writeStmt(stmt ast.Stmt) {
