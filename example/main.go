@@ -386,6 +386,17 @@ func testSeqs() {
 		s := Seq[int]{1, 2, 3}
 		check(len(s) == 3)
 	}
+	{
+		s := Seq[Point]{{1, 2}, {3, 4}}
+		check(len(s) == 2)
+		check(s[0].x == 1)
+		check(s[0].y == 2)
+		check(s[1].x == 3)
+		check(s[1].y == 4)
+		s.Add(Point{5, 6})
+		check(s[2].x == 5)
+		check(s[2].y == 6)
+	}
 }
 
 //
