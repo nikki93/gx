@@ -194,6 +194,10 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 			builder.WriteString(" {\n")
 			for _, field := range typ.Fields.List {
 				if typ := c.types.TypeOf(field.Type); typ != nil {
+					if _, ok := typ.(*types.Signature); ok {
+						c.errorf(field.Type.Pos(), "struct field of function type unsupported")
+						continue
+					}
 					typeExpr := c.genTypeExpr(typ, field.Type.Pos())
 					for _, fieldName := range field.Names {
 						builder.WriteString("  ")
