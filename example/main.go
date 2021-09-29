@@ -316,6 +316,10 @@ func setSecondElementToThree(arr *[4]int) {
 	arr[1] = 3
 }
 
+type HasArray struct {
+	arr [4]int
+}
+
 func testArrays() {
 	{
 		arr := [4]int{1, 2, 3, 4}
@@ -340,6 +344,11 @@ func testArrays() {
 		check(arr[0][1] == 2)
 		check(arr[1][0] == 3)
 		check(arr[1][1] == 4)
+	}
+	{
+		h := HasArray{[4]int{1, 2, 3, 4}}
+		check(len(h.arr) == 4)
+		check(h.arr[2] == 3)
 	}
 }
 
