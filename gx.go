@@ -333,7 +333,7 @@ func (c *Compiler) writeFuncLit(lit *ast.FuncLit) {
 }
 
 func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
-	c.write(c.genTypeExpr(c.types.TypeOf(lit.Type), lit.Type.Pos()))
+	c.write(c.genTypeExpr(c.types.TypeOf(lit), lit.Pos()))
 	c.write("{")
 	if len(lit.Elts) > 0 {
 		if _, ok := lit.Elts[0].(*ast.KeyValueExpr); ok {
