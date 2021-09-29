@@ -635,7 +635,7 @@ func (c *Compiler) writeRangeStmt(rangeStmt *ast.RangeStmt) {
 	if rangeStmt.Value != nil {
 		c.writeExpr(rangeStmt.Value)
 	} else {
-		c.write("_")
+		c.write("_ [[maybe_unused]]")
 	}
 	c.write(" : ")
 	c.writeExpr(rangeStmt.X)

@@ -337,10 +337,15 @@ func testArrays() {
 		arr := [...]int{1, 2, 3}
 		check(len(arr) == 3)
 		sum := 0
+		count := 0
 		for _, elem := range arr {
 			sum += elem
 		}
+		for range arr {
+			count += 1
+		}
 		check(sum == 6)
+		check(count == 3)
 	}
 	{
 		arr := [...][2]int{{1, 2}, {3, 4}}
@@ -391,10 +396,15 @@ func testSlices() {
 		s = append(s, 3)
 		check(len(s) == 3)
 		sum := 0
+		count := 0
 		for _, elem := range s {
 			sum += elem
 		}
+		for range s {
+			count += 1
+		}
 		check(sum == 6)
+		check(count == 3)
 	}
 }
 
