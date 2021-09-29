@@ -346,6 +346,14 @@ func testArrays() {
 		check(arr[1][1] == 4)
 	}
 	{
+		h := HasArray{}
+		check(len(h.arr) == 4)
+		check(h.arr[0] == 0)
+		check(h.arr[1] == 0)
+		check(h.arr[2] == 0)
+		check(h.arr[3] == 0)
+	}
+	{
 		h := HasArray{[4]int{1, 2, 3, 4}}
 		check(len(h.arr) == 4)
 		check(h.arr[2] == 3)
