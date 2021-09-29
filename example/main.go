@@ -446,6 +446,33 @@ func (s *Seq[T]) add(val T) {
 	*s = append(*s, val)
 }
 
+type Increr[T any] interface {
+	*T
+	incr()
+}
+
+func incrSeq[T any, PT Increr[T]](s *Seq[T]) {
+	for _, elem := range *s {
+		PT(&elem).incr()
+	}
+}
+
+type SingleIncr struct {
+	val int
+}
+
+func (s *SingleIncr) incr() {
+	s.val += 1
+}
+
+type DoubleIncr struct {
+	val int
+}
+
+func (s *DoubleIncr) incr() {
+	s.val += 2
+}
+
 func testSeqs() {
 	{
 		s := Seq[int]{}
@@ -486,6 +513,20 @@ func testSeqs() {
 		check(s[2].len() == 2)
 		check(s[2][0] == 3)
 		check(s[2][1] == 4)
+	}
+	{
+		s := Seq[SingleIncr]{{1}, {2}, {3}}
+		incrSeq(&s)
+		check(s[0].val == 2)
+		check(s[1].val == 3)
+		check(s[2].val == 4)
+	}
+	{
+		s := Seq[DoubleIncr]{{1}, {2}, {3}}
+		incrSeq(&s)
+		check(s[0].val == 3)
+		check(s[1].val == 4)
+		check(s[2].val == 5)
 	}
 }
 
