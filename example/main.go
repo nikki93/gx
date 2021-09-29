@@ -13,27 +13,27 @@ func fib(n int) int {
 }
 
 func testFib() {
-	assert(fib(6) == 8)
+	check(fib(6) == 8)
 }
 
 func testUnary() {
-	assert(-(3) == -3)
-	assert(+(3) == 3)
+	check(-(3) == -3)
+	check(+(3) == 3)
 }
 
 func testVariables() {
 	x := 3
 	y := 4
-	assert(x == 3)
-	assert(y == 4)
+	check(x == 3)
+	check(y == 4)
 	y = y + 2
 	x = x + 1
-	assert(y == 6)
-	assert(x == 4)
+	check(y == 6)
+	check(x == 4)
 	y += 2
 	x += 1
-	assert(y == 8)
-	assert(x == 5)
+	check(y == 8)
+	check(x == 5)
 }
 
 func testIf() {
@@ -41,7 +41,7 @@ func testIf() {
 	if cond := false; cond {
 		x = 2
 	}
-	assert(x == 0)
+	check(x == 0)
 }
 
 func testFor() {
@@ -50,7 +50,7 @@ func testFor() {
 		for i := 0; i < 5; i += 1 {
 			sum += i
 		}
-		assert(sum == 10)
+		check(sum == 10)
 	}
 	{
 		sum := 0
@@ -59,7 +59,7 @@ func testFor() {
 			sum += i
 			i += 1
 		}
-		assert(sum == 10)
+		check(sum == 10)
 	}
 	{
 		sum := 0
@@ -71,7 +71,7 @@ func testFor() {
 			sum += i
 			i += 1
 		}
-		assert(sum == 10)
+		check(sum == 10)
 	}
 }
 
@@ -85,12 +85,12 @@ func setToFortyTwo(ptr *int) {
 
 func testPointer() {
 	val := 42
-	assert(val == 42)
+	check(val == 42)
 	ptr := &val
 	*ptr = 14
-	assert(val == 14)
+	check(val == 14)
 	setToFortyTwo(ptr)
-	assert(val == 42)
+	check(val == 42)
 }
 
 //
@@ -122,38 +122,38 @@ type PtrPtr struct {
 func testStruct() {
 	{
 		s := Outer{}
-		assert(s.x == 0)
-		assert(s.y == 0)
-		assert(s.inner.z == 0)
+		check(s.x == 0)
+		check(s.y == 0)
+		check(s.inner.z == 0)
 		{
 			p := &s
 			p.x = 2
-			assert(p.x == 2)
-			assert(s.x == 2)
+			check(p.x == 2)
+			check(s.x == 2)
 			s.y = 4
-			assert(p.y == 4)
+			check(p.y == 4)
 		}
-		assert(outerSum(s) == 6)
+		check(outerSum(s) == 6)
 		setXToFortyTwo(&s)
-		assert(s.x == 42)
+		check(s.x == 42)
 	}
 	{
 		s := Outer{2, 3, Inner{4}}
-		assert(s.x == 2)
-		assert(s.y == 3)
-		assert(s.inner.z == 4)
+		check(s.x == 2)
+		check(s.y == 3)
+		check(s.inner.z == 4)
 		s.x += 1
 		s.y += 1
 		s.inner.z += 1
-		assert(s.x == 3)
-		assert(s.y == 4)
-		assert(s.inner.z == 5)
+		check(s.x == 3)
+		check(s.y == 4)
+		check(s.inner.z == 5)
 	}
 	{
 		s := Outer{x: 2, y: 3, inner: Inner{z: 4}}
-		assert(s.x == 2)
-		assert(s.y == 3)
-		assert(s.inner.z == 4)
+		check(s.x == 2)
+		check(s.y == 3)
+		check(s.inner.z == 4)
 	}
 	{
 		s := Outer{
@@ -163,9 +163,9 @@ func testStruct() {
 				z: 4,
 			},
 		}
-		assert(s.x == 2)
-		assert(s.y == 3)
-		assert(s.inner.z == 4)
+		check(s.x == 2)
+		check(s.y == 3)
+		check(s.inner.z == 4)
 	}
 	{
 		// Out-of-order elements in struct literal no longer allowed
@@ -183,7 +183,7 @@ func testStruct() {
 		pp := &p
 		d := PtrPtr{pp}
 		**d.pp = 14
-		assert(i == 14)
+		check(i == 14)
 	}
 }
 
@@ -206,12 +206,12 @@ func (p *Point) setZero() {
 
 func testMethod() {
 	p := Point{2, 3}
-	assert(p.sum() == 5)
+	check(p.sum() == 5)
 	ptr := &p
-	assert(ptr.sum() == 5) // Pointer as value receiver
-	p.setZero()            // Addressable value as pointer receiver
-	assert(p.x == 0)
-	assert(p.y == 0)
+	check(ptr.sum() == 5) // Pointer as value receiver
+	p.setZero()           // Addressable value as pointer receiver
+	check(p.x == 0)
+	check(p.y == 0)
 }
 
 //
@@ -244,33 +244,33 @@ func (h *Holder[T]) set(item T) {
 
 func testGenerics() {
 	{
-		assert(add(1, 2) == 3)
-		assert(add(1.2, 2.0) == 3.2)
+		check(add(1, 2) == 3)
+		check(add(1.2, 2.0) == 3.2)
 	}
 	{
 		i := Holder[int]{42}
-		assert(i.item == 42)
+		check(i.item == 42)
 		incrHolder(&i)
-		assert(i.item == 43)
+		check(i.item == 43)
 
 		f := Holder[float64]{42}
-		assert(f.item == 42)
-		assert(add(f.item, 20) == 62)
+		check(f.item == 42)
+		check(add(f.item, 20) == 62)
 		incrHolder(&f)
-		assert(f.item == 43)
+		check(f.item == 43)
 
 		p := Holder[Point]{Point{1, 2}}
-		assert(p.item.x == 1)
-		assert(p.item.y == 2)
+		check(p.item.x == 1)
+		check(p.item.y == 2)
 		p.item.setZero()
-		assert(p.item.x == 0)
-		assert(p.item.y == 0)
+		check(p.item.x == 0)
+		check(p.item.y == 0)
 
 		p.set(Point{3, 2})
-		assert(p.item.x == 3)
-		assert(p.item.y == 2)
-		assert(p.get().x == 3)
-		assert(p.get().y == 2)
+		check(p.item.x == 3)
+		check(p.item.y == 2)
+		check(p.get().x == 3)
+		check(p.get().y == 2)
 	}
 }
 
@@ -287,24 +287,24 @@ func iterateOneToTen(f func(int)) {
 func testLambdas() {
 	{
 		val := 42
-		assert(val == 42)
+		check(val == 42)
 		foo := func(newVal int) {
 			val = newVal
 		}
 		foo(14)
-		assert(val == 14)
+		check(val == 14)
 
 		val2 := func() int {
 			return val
 		}()
-		assert(val2 == val)
+		check(val2 == val)
 	}
 	{
 		sum := 0
 		iterateOneToTen(func(i int) {
 			sum += i
 		})
-		assert(sum == 55)
+		check(sum == 55)
 	}
 }
 
@@ -319,19 +319,42 @@ func setSecondElementToThree(arr *[4]int) {
 func testArrays() {
 	{
 		arr := [4]int{1, 2, 3, 4}
-		assert(arr[2] == 3)
+		check(arr[2] == 3)
 		sum := 0
 		for i := 0; i < len(arr); i += 1 {
 			sum += arr[i]
 		}
-		assert(sum == 10)
-		assert(arr[1] == 2)
+		check(sum == 10)
+		check(arr[1] == 2)
 		setSecondElementToThree(&arr)
-		assert(arr[1] == 3)
+		check(arr[1] == 3)
 	}
 	{
 		arr := [...]int{1, 2, 3, 4, 5}
-		assert(len(arr) == 5)
+		check(len(arr) == 5)
+	}
+}
+
+//
+// Slices
+//
+
+func appendFortyTwo(s *[]int) {
+	*s = append(*s, 42)
+}
+
+func testSlices() {
+	{
+		s := []int{}
+		check(len(s) == 0)
+		s = append(s, 1)
+		s = append(s, 2)
+		check(len(s) == 2)
+		check(s[0] == 1)
+		check(s[1] == 2)
+		appendFortyTwo(&s)
+		check(len(s) == 3)
+		check(s[2] == 42)
 	}
 }
 

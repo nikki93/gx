@@ -130,6 +130,11 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 			builder.WriteString(strconv.FormatInt(typ.Len(), 10))
 			builder.WriteString(">")
 			builder.WriteByte(' ')
+		case *types.Slice:
+			builder.WriteString("gx::Slice<")
+			builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
+			builder.WriteString(">")
+			builder.WriteByte(' ')
 		default:
 			c.errorf(pos, "%s not supported", typ.String())
 		}

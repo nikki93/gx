@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <vector>
 
 
 namespace gx {
@@ -58,6 +59,31 @@ struct Array {
 template<typename T, int N>
 constexpr int len(const Array<T, N> &a) {
   return N;
+}
+
+
+//
+// Slice
+//
+
+template<typename T>
+struct Slice {
+  std::vector<T> data;
+
+  T &operator[](int i) {
+    return data[i];
+  }
+};
+
+template<typename T>
+int len(const Slice<T> &s) {
+  return s.data.size();
+}
+
+template<typename T, typename U>
+Slice<T> &append(Slice<T> &s, U &&val) {
+  s.data.push_back(val);
+  return s;
 }
 
 

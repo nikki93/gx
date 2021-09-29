@@ -1,6 +1,6 @@
 package main
 
-func assert(val bool) {
+func check(val bool) {
 	if val {
 		println("ok")
 	} else {
