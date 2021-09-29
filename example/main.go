@@ -334,18 +334,22 @@ func testArrays() {
 		check(arr[1] == 3)
 	}
 	{
-		arr := [...]int{1, 2, 3}
-		check(len(arr) == 3)
-		sum := 0
-		count := 0
-		for _, elem := range arr {
-			sum += elem
+		stuff := [...]int{1, 2, 3}
+		check(len(stuff) == 3)
+		{
+			sum := 0
+			for _, elem := range stuff {
+				sum += elem
+			}
+			check(sum == 6)
 		}
-		for range arr {
-			count += 1
+		{
+			count := 0
+			for range stuff {
+				count += 1
+			}
+			check(count == 3)
 		}
-		check(sum == 6)
-		check(count == 3)
 	}
 	{
 		arr := [...][2]int{{1, 2}, {3, 4}}
@@ -392,19 +396,31 @@ func testSlices() {
 		check(s[2] == 42)
 	}
 	{
-		s := []int{1, 2}
-		s = append(s, 3)
-		check(len(s) == 3)
-		sum := 0
-		count := 0
-		for _, elem := range s {
-			sum += elem
+		stuff := []int{1, 2}
+		stuff = append(stuff, 3)
+		check(len(stuff) == 3)
+		{
+			sum := 0
+			for _, elem := range stuff {
+				sum += elem
+			}
+			check(sum == 6)
 		}
-		for range s {
-			count += 1
+		{
+			count := 0
+			for range stuff {
+				count += 1
+			}
+			check(count == 3)
 		}
-		check(sum == 6)
-		check(count == 3)
+		{
+			stuff = []int{}
+			count := 0
+			for range stuff {
+				count += 1
+			}
+			check(count == 0)
+		}
 	}
 }
 
