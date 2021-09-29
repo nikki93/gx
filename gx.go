@@ -720,7 +720,9 @@ func (c *Compiler) compile() {
 			return
 		}
 		for _, fileInfo := range fileInfos {
-			c.filePaths = append(c.filePaths, filepath.Join(c.directoryPath, fileInfo.Name()))
+			if strings.HasSuffix(fileInfo.Name(), ".gx.go") {
+				c.filePaths = append(c.filePaths, filepath.Join(c.directoryPath, fileInfo.Name()))
+			}
 		}
 	}
 
