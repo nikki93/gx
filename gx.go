@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -122,6 +123,13 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 			builder.WriteByte(' ')
 		case *types.Signature:
 			builder.WriteString("auto &&")
+		case *types.Array:
+			builder.WriteString("Array<")
+			builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
+			builder.WriteString(", ")
+			builder.WriteString(strconv.FormatInt(typ.Len(), 10))
+			builder.WriteString(">")
+			builder.WriteByte(' ')
 		default:
 			c.errorf(pos, "%s not supported", typ.String())
 		}
@@ -369,6 +377,19 @@ func (c *Compiler) writeSelectorExpr(sel *ast.SelectorExpr) {
 	c.writeIdent(sel.Sel)
 }
 
+func (c *Compiler) writeIndexExpr(ind *ast.IndexExpr) {
+	if _, ok := c.types.TypeOf(ind.X).(*types.Pointer); ok {
+		c.write("(*(")
+		c.writeExpr(ind.X)
+		c.write("))")
+	} else {
+		c.writeExpr(ind.X)
+	}
+	c.write("[")
+	c.writeExpr(ind.Index)
+	c.write("]")
+}
+
 func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 	method := false
 	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
@@ -476,6 +497,8 @@ func (c *Compiler) writeExpr(expr ast.Expr) {
 		c.writeParenExpr(expr)
 	case *ast.SelectorExpr:
 		c.writeSelectorExpr(expr)
+	case *ast.IndexExpr:
+		c.writeIndexExpr(expr)
 	case *ast.CallExpr:
 		c.writeCallExpr(expr)
 	case *ast.StarExpr:

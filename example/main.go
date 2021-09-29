@@ -309,6 +309,33 @@ func testLambdas() {
 }
 
 //
+// Arrays
+//
+
+func setSecondElementToThree(arr *[4]int) {
+	arr[1] = 3
+}
+
+func testArrays() {
+	{
+		arr := [4]int{1, 2, 3, 4}
+		assert(arr[2] == 3)
+		sum := 0
+		for i := 0; i < len(arr); i += 1 {
+			sum += arr[i]
+		}
+		assert(sum == 10)
+		assert(arr[1] == 2)
+		setSecondElementToThree(&arr)
+		assert(arr[1] == 3)
+	}
+	{
+		arr := [...]int{1, 2, 3, 4, 5}
+		assert(len(arr) == 5)
+	}
+}
+
+//
 // Main
 //
 
@@ -323,4 +350,5 @@ func main() {
 	testMethod()
 	testGenerics()
 	testLambdas()
+	testArrays()
 }

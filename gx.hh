@@ -37,3 +37,22 @@ void println(Args &&...args) {
   print(args...);
   print("\n");
 }
+
+
+//
+// Array
+//
+
+template<typename T, int N>
+struct Array {
+  T data[N] {};
+
+  T &operator[](int i) {
+    return data[i];
+  }
+};
+
+template<typename T, int N>
+constexpr int len(const Array<T, N> &a) {
+  return N;
+}
