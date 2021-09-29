@@ -168,7 +168,7 @@ func (c *Compiler) genTypeDecl(typeSpec *ast.TypeSpec) string {
 			builder.WriteString("struct ")
 			builder.WriteString(typeSpec.Name.String())
 		case *ast.InterfaceType:
-			// Nothing to do -- only used as generic constraint during typecheck
+			builder = &strings.Builder{} // Empty -- only used as generic constraint during typecheck
 		default:
 			builder.WriteString("using ")
 			builder.WriteString(typeSpec.Name.String())
@@ -204,9 +204,9 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 			}
 			builder.WriteByte('}')
 		case *ast.InterfaceType:
-			// Nothing to do -- only used as generic constraint during typecheck
+			// Empty -- only used as generic constraint during typecheck
 		default:
-			// Nothing to do -- alias declaration is a definition
+			// Empty -- alias declaration is a definition
 		}
 		result = builder.String()
 		c.genTypeDefns[typeSpec] = result
