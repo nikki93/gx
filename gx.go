@@ -626,6 +626,23 @@ func (c *Compiler) writeForStmt(forStmt *ast.ForStmt) {
 	c.writeStmt(forStmt.Body)
 }
 
+func (c *Compiler) writeRangeStmt(rangeStmt *ast.RangeStmt) {
+	if rangeStmt.Tok == token.ASSIGN {
+		c.errorf(rangeStmt.Pos(), "must use := in for-range")
+	}
+	c.write("for (")
+	c.write("auto &")
+	if rangeStmt.Value != nil {
+		c.writeExpr(rangeStmt.Value)
+	} else {
+		c.write("_")
+	}
+	c.write(" : ")
+	c.writeExpr(rangeStmt.X)
+	c.write(")")
+	c.writeStmt(rangeStmt.Body)
+}
+
 func (c *Compiler) writeStmt(stmt ast.Stmt) {
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
@@ -642,6 +659,8 @@ func (c *Compiler) writeStmt(stmt ast.Stmt) {
 		c.writeIfStmt(stmt)
 	case *ast.ForStmt:
 		c.writeForStmt(stmt)
+	case *ast.RangeStmt:
+		c.writeRangeStmt(stmt)
 	default:
 		c.errorf(stmt.Pos(), "unsupported statement type")
 	}

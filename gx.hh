@@ -54,6 +54,14 @@ struct Array {
   T &operator[](int i) {
     return data[i];
   }
+
+  T *begin() {
+    return &data[0];
+  }
+
+  T *end() {
+    return &data[N];
+  }
 };
 
 template<typename T, int N>
@@ -78,6 +86,14 @@ struct Slice {
 
   T &operator[](int i) {
     return data[i];
+  }
+
+  auto begin() {
+    return data.begin();
+  }
+
+  auto end() {
+    return data.end();
   }
 };
 
