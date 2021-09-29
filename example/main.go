@@ -433,10 +433,14 @@ func testSlices() {
 }
 
 //
-// Seq
+// Seq (generic slice with own methods)
 //
 
 type Seq[T any] []T
+
+func (s *Seq[T]) len() int {
+	return len(*s)
+}
 
 func (s *Seq[T]) add(val T) {
 	*s = append(*s, val)
@@ -445,16 +449,16 @@ func (s *Seq[T]) add(val T) {
 func testSeqs() {
 	{
 		s := Seq[int]{}
-		check(len(s) == 0)
+		check(s.len() == 0)
 		s.add(1)
 		s.add(2)
-		check(len(s) == 2)
+		check(s.len() == 2)
 		check(s[0] == 1)
 		check(s[1] == 2)
 	}
 	{
 		s := Seq[int]{1, 2, 3}
-		check(len(s) == 3)
+		check(s.len() == 3)
 		sum := 0
 		for i, elem := range s {
 			check(i+1 == elem)
@@ -464,7 +468,7 @@ func testSeqs() {
 	}
 	{
 		s := Seq[Point]{{1, 2}, {3, 4}}
-		check(len(s) == 2)
+		check(s.len() == 2)
 		check(s[0].x == 1)
 		check(s[0].y == 2)
 		check(s[1].x == 3)
@@ -475,11 +479,11 @@ func testSeqs() {
 	}
 	{
 		s := Seq[Seq[int]]{{1}, {}, {3, 4}}
-		check(len(s) == 3)
+		check(s.len() == 3)
 		check(len(s[0]) == 1)
 		check(s[0][0] == 1)
-		check(len(s[1]) == 0)
-		check(len(s[2]) == 2)
+		check(s[1].len() == 0)
+		check(s[2].len() == 2)
 		check(s[2][0] == 3)
 		check(s[2][1] == 4)
 	}
