@@ -336,14 +336,12 @@ func testArrays() {
 	{
 		stuff := [...]int{1, 2, 3}
 		check(len(stuff) == 3)
-		{
-			sum := 0
-			for i, elem := range stuff {
-				check(i+1 == elem)
-				sum += elem
-			}
-			check(sum == 6)
+		sum := 0
+		for i, elem := range stuff {
+			check(i+1 == elem)
+			sum += elem
 		}
+		check(sum == 6)
 		// Other cases of for-range are checked in `testSlices`
 	}
 	{
@@ -440,7 +438,7 @@ func testSlices() {
 
 type Seq[T any] []T
 
-func (s *Seq[T]) Add(val T) {
+func (s *Seq[T]) add(val T) {
 	*s = append(*s, val)
 }
 
@@ -448,8 +446,8 @@ func testSeqs() {
 	{
 		s := Seq[int]{}
 		check(len(s) == 0)
-		s.Add(1)
-		s.Add(2)
+		s.add(1)
+		s.add(2)
 		check(len(s) == 2)
 		check(s[0] == 1)
 		check(s[1] == 2)
@@ -457,6 +455,12 @@ func testSeqs() {
 	{
 		s := Seq[int]{1, 2, 3}
 		check(len(s) == 3)
+		sum := 0
+		for i, elem := range s {
+			check(i+1 == elem)
+			sum += elem
+		}
+		check(sum == 6)
 	}
 	{
 		s := Seq[Point]{{1, 2}, {3, 4}}
@@ -465,7 +469,7 @@ func testSeqs() {
 		check(s[0].y == 2)
 		check(s[1].x == 3)
 		check(s[1].y == 4)
-		s.Add(Point{5, 6})
+		s.add(Point{5, 6})
 		check(s[2].x == 5)
 		check(s[2].y == 6)
 	}
