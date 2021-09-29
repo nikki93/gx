@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -706,6 +707,9 @@ func (c *Compiler) writeStmtList(list []ast.Stmt) {
 // Top-level
 //
 
+//go:embed gx.hh
+var preamble string
+
 func (c *Compiler) compile() {
 	// Collect file paths from directory
 	if len(c.filePaths) == 0 && c.directoryPath != "" {
@@ -756,8 +760,8 @@ func (c *Compiler) compile() {
 		return
 	}
 
-	// `#include`s
-	c.write("#include \"gx.hh\"\n")
+	// Preamble
+	c.write(preamble)
 
 	// Collect type specs
 	var typeSpecs []*ast.TypeSpec
