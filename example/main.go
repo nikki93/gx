@@ -359,6 +359,28 @@ func testSlices() {
 }
 
 //
+// Seq
+//
+
+type Seq[T any] []T
+
+func (s *Seq[T]) Add(val T) {
+	*s = append(*s, val)
+}
+
+func testSeqs() {
+	{
+		s := Seq[int]{}
+		check(len(s) == 0)
+		s.Add(1)
+		s.Add(2)
+		check(len(s) == 2)
+		check(s[0] == 1)
+		check(s[1] == 2)
+	}
+}
+
+//
 // Main
 //
 
@@ -374,4 +396,6 @@ func main() {
 	testGenerics()
 	testLambdas()
 	testArrays()
+	testSlices()
+	testSeqs()
 }

@@ -171,7 +171,11 @@ func (c *Compiler) genTypeDecl(typeSpec *ast.TypeSpec) string {
 		case *ast.InterfaceType:
 			// Nothing to do -- only used as generic constraint during typecheck
 		default:
-			c.errorf(typeSpec.Type.Pos(), "type not supported")
+			builder.WriteString("using ")
+			builder.WriteString(typeSpec.Name.String())
+			builder.WriteString(" = ")
+			typ := c.types.TypeOf(typeSpec.Type)
+			builder.WriteString(trimFinalSpace(c.genTypeExpr(typ, typeSpec.Type.Pos())))
 		}
 		result = builder.String()
 		c.genTypeDecls[typeSpec] = result
@@ -203,7 +207,7 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 		case *ast.InterfaceType:
 			// Nothing to do -- only used as generic constraint during typecheck
 		default:
-			c.errorf(typeSpec.Type.Pos(), "type not supported")
+			// Nothing to do -- alias declaration is a definition
 		}
 		result = builder.String()
 		c.genTypeDefns[typeSpec] = result
