@@ -276,7 +276,14 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 		// Parameters
 		builder.WriteByte('(')
 		addParam := func(param *types.Var) {
-			builder.WriteString(c.genTypeExpr(param.Type(), param.Pos()))
+			typ := param.Type()
+			switch typ.Underlying().(type) {
+			case *types.Array:
+				c.errorf(param.Pos(), "cannot pass array by value, use pointer to array *%s instead", typ)
+			case *types.Slice:
+				c.errorf(param.Pos(), "cannot pass slice by value, use pointer to slice *%s instead", typ)
+			}
+			builder.WriteString(c.genTypeExpr(typ, param.Pos()))
 			builder.WriteString(param.Name())
 		}
 		if recv != nil {
