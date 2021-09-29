@@ -1,6 +1,9 @@
 #include <cstdio>
 
 
+namespace gx {
+
+
 //
 // Print
 //
@@ -55,4 +58,7 @@ struct Array {
 template<typename T, int N>
 constexpr int len(const Array<T, N> &a) {
   return N;
+}
+
+
 }

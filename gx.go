@@ -124,7 +124,7 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 		case *types.Signature:
 			builder.WriteString("auto &&")
 		case *types.Array:
-			builder.WriteString("Array<")
+			builder.WriteString("gx::Array<")
 			builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
 			builder.WriteString(", ")
 			builder.WriteString(strconv.FormatInt(typ.Len(), 10))
@@ -292,6 +292,9 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 //
 
 func (c *Compiler) writeIdent(ident *ast.Ident) {
+	if c.types.Types[ident].IsBuiltin() {
+		c.write("gx::")
+	}
 	c.write(ident.Name)
 }
 
