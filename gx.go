@@ -628,7 +628,7 @@ func (c *Compiler) writeForStmt(forStmt *ast.ForStmt) {
 
 func (c *Compiler) writeRangeStmt(rangeStmt *ast.RangeStmt) {
 	if rangeStmt.Tok == token.ASSIGN {
-		c.errorf(rangeStmt.Pos(), "must use := in for-range")
+		c.errorf(rangeStmt.TokPos, "must use := in range statement")
 	}
 	var key *ast.Ident
 	if rangeStmt.Key != nil {
