@@ -28,12 +28,13 @@ GO="$TIME $GO"
 case "$1" in
   # Desktop
   release)
+    mkdir -p build
     $GO build gx.go
-    rm -rf example.gx.cc
-    $TIME ./gx ./example example.gx.cc
+    rm -rf build/example.gx.cc
+    $TIME ./gx ./example build/example.gx.cc
     rm gx
-    if [[ -f example.gx.cc ]]; then
-      $CLANG -std=c++20 -Wall -O3 -o output example.gx.cc || true
+    if [[ -f build/example.gx.cc ]]; then
+      $CLANG -std=c++20 -Wall -O3 -o output build/example.gx.cc || true
     fi
     if [[ -f output ]]; then
       ./output || true
