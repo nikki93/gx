@@ -313,7 +313,7 @@ func (c *Compiler) writeIdent(ident *ast.Ident) {
 	if c.types.Types[ident].IsBuiltin() {
 		c.write("gx::")
 	}
-	c.write(ident.Name)
+	c.write(ident.Name) // TODO: Package namespace
 }
 
 func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
@@ -389,11 +389,13 @@ func (c *Compiler) writeParenExpr(bin *ast.ParenExpr) {
 }
 
 func (c *Compiler) writeSelectorExpr(sel *ast.SelectorExpr) {
-	c.writeExpr(sel.X)
-	if _, ok := c.types.TypeOf(sel.X).(*types.Pointer); ok {
-		c.write("->")
-	} else {
-		c.write(".")
+	if basic, ok := c.types.TypeOf(sel.X).(*types.Basic); !(ok && basic.Kind() == types.Invalid) {
+		c.writeExpr(sel.X)
+		if _, ok := c.types.TypeOf(sel.X).(*types.Pointer); ok {
+			c.write("->")
+		} else {
+			c.write(".")
+		}
 	}
 	c.writeIdent(sel.Sel)
 }
@@ -721,18 +723,19 @@ func (c *Compiler) compile() {
 	c.errors = &strings.Builder{}
 	c.output = &strings.Builder{}
 
-	// Load packages
+	// Load main package
 	packagesConfig := &packages.Config{
-		Mode: packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
+		Mode: packages.NeedImports | packages.NeedDeps |
+			packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo,
 	}
-	pkgs, err := packages.Load(packagesConfig, c.mainPkgPath)
+	loadPkgs, err := packages.Load(packagesConfig, c.mainPkgPath)
 	if err != nil {
 		fmt.Fprintln(c.errors, err)
 	}
-	if len(pkgs) == 0 {
+	if len(loadPkgs) == 0 {
 		return
 	}
-	for _, pkg := range pkgs {
+	for _, pkg := range loadPkgs {
 		for _, err := range pkg.Errors {
 			if err.Pos != "" {
 				fmt.Fprintf(c.errors, "%s: %s\n", err.Pos, err.Msg)
@@ -744,9 +747,69 @@ func (c *Compiler) compile() {
 	if c.errored() {
 		return
 	}
-	c.fileSet = pkgs[0].Fset
-	files := pkgs[0].Syntax
-	c.types = pkgs[0].TypesInfo
+	c.fileSet = loadPkgs[0].Fset
+
+	// Collect packages
+	var pkgs []*packages.Package
+	{
+		packageCollected := make(map[*packages.Package]bool)
+		var collectPackage func(pkg *packages.Package)
+		collectPackage = func(pkg *packages.Package) {
+			if !packageCollected[pkg] {
+				packageCollected[pkg] = true
+				for _, depPkg := range pkg.Imports {
+					collectPackage(depPkg)
+				}
+				pkgs = append(pkgs, pkg)
+				if pkg.Fset != c.fileSet {
+					c.errorf(0, "internal error: filesets differ")
+				}
+			}
+		}
+		for _, pkg := range loadPkgs {
+			collectPackage(pkg)
+		}
+	}
+
+	// Collect files
+	var files []*ast.File
+	for _, pkg := range pkgs {
+		files = append(files, pkg.Syntax...)
+	}
+
+	// Collect type info
+	c.types = &types.Info{
+		Types:      make(map[ast.Expr]types.TypeAndValue),
+		Instances:  make(map[*ast.Ident]types.Instance),
+		Defs:       make(map[*ast.Ident]types.Object),
+		Uses:       make(map[*ast.Ident]types.Object),
+		Implicits:  make(map[ast.Node]types.Object),
+		Selections: make(map[*ast.SelectorExpr]*types.Selection),
+		Scopes:     make(map[ast.Node]*types.Scope),
+	}
+	for _, pkg := range pkgs {
+		for k, v := range pkg.TypesInfo.Types {
+			c.types.Types[k] = v
+		}
+		for k, v := range pkg.TypesInfo.Instances {
+			c.types.Instances[k] = v
+		}
+		for k, v := range pkg.TypesInfo.Defs {
+			c.types.Defs[k] = v
+		}
+		for k, v := range pkg.TypesInfo.Uses {
+			c.types.Uses[k] = v
+		}
+		for k, v := range pkg.TypesInfo.Implicits {
+			c.types.Implicits[k] = v
+		}
+		for k, v := range pkg.TypesInfo.Selections {
+			c.types.Selections[k] = v
+		}
+		for k, v := range pkg.TypesInfo.Scopes {
+			c.types.Scopes[k] = v
+		}
+	}
 
 	// Preamble
 	c.write(preamble)

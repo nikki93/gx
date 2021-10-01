@@ -1,5 +1,9 @@
 package main
 
+import (
+	"github.com/nikki93/gx/example/foo"
+)
+
 //
 // Basics
 //
@@ -531,10 +535,20 @@ func testSeqs() {
 }
 
 //
+// Imports
+//
+
+func testImports() {
+	f := foo.NewFoo(42)
+	check(f.Val() == 42)
+}
+
+//
 // Main
 //
 
 func main() {
+	testImports()
 	testFib()
 	testUnary()
 	testVariables()
