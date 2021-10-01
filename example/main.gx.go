@@ -539,8 +539,14 @@ func testSeqs() {
 //
 
 func testImports() {
-	f := foo.NewFoo(42)
-	check(f.Val() == 42)
+	{
+		f := foo.Foo{}
+		check(f.Val() == 0)
+	}
+	{
+		f := foo.NewFoo(42)
+		check(f.Val() == 42)
+	}
 }
 
 //
@@ -548,7 +554,6 @@ func testImports() {
 //
 
 func main() {
-	testImports()
 	testFib()
 	testUnary()
 	testVariables()
@@ -562,4 +567,5 @@ func main() {
 	testArrays()
 	testSlices()
 	testSeqs()
+	testImports()
 }
