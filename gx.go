@@ -4,22 +4,20 @@ import (
 	_ "embed"
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"go/types"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
+
+	"golang.org/x/tools/go/packages"
 )
 
 type Compiler struct {
-	directoryPath string
-	filePaths     []string
+	mainPkgPath string
 
 	fileSet *token.FileSet
-	files   []*ast.File
 	types   *types.Info
 
 	fieldIndices map[*types.Var]int
@@ -712,20 +710,6 @@ func (c *Compiler) writeStmtList(list []ast.Stmt) {
 var preamble string
 
 func (c *Compiler) compile() {
-	// Collect file paths from directory
-	if len(c.filePaths) == 0 && c.directoryPath != "" {
-		fileInfos, err := ioutil.ReadDir(c.directoryPath)
-		if err != nil {
-			fmt.Fprintf(c.errors, "%s\n", err)
-			return
-		}
-		for _, fileInfo := range fileInfos {
-			if strings.HasSuffix(fileInfo.Name(), ".gx.go") {
-				c.filePaths = append(c.filePaths, filepath.Join(c.directoryPath, fileInfo.Name()))
-			}
-		}
-	}
-
 	// Initialize maps
 	c.fieldIndices = make(map[*types.Var]int)
 	c.genTypeExprs = make(map[types.Type]string)
@@ -737,31 +721,32 @@ func (c *Compiler) compile() {
 	c.errors = &strings.Builder{}
 	c.output = &strings.Builder{}
 
-	// Parse
-	c.fileSet = token.NewFileSet()
-	for _, filePath := range c.filePaths {
-		file, err := parser.ParseFile(c.fileSet, filePath, nil, 0)
-		if err != nil {
-			fmt.Fprintf(c.errors, "%s\n", err)
-			return
-		}
-		c.files = append(c.files, file)
+	// Load packages
+	packagesConfig := &packages.Config{
+		Mode: packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
 	}
-
-	// Type-check
-	c.types = &types.Info{
-		Types:      make(map[ast.Expr]types.TypeAndValue),
-		Instances:  make(map[*ast.Ident]types.Instance),
-		Defs:       make(map[*ast.Ident]types.Object),
-		Uses:       make(map[*ast.Ident]types.Object),
-		Implicits:  make(map[ast.Node]types.Object),
-		Selections: make(map[*ast.SelectorExpr]*types.Selection),
-		Scopes:     make(map[ast.Node]*types.Scope),
+	pkgs, err := packages.Load(packagesConfig, c.mainPkgPath)
+	if err != nil {
+		fmt.Fprintln(c.errors, err)
 	}
-	if _, err := (&types.Config{}).Check("", c.fileSet, c.files, c.types); err != nil {
-		fmt.Fprintf(c.errors, "%s\n", err)
+	if len(pkgs) == 0 {
 		return
 	}
+	for _, pkg := range pkgs {
+		for _, err := range pkg.Errors {
+			if err.Pos != "" {
+				fmt.Fprintf(c.errors, "%s: %s\n", err.Pos, err.Msg)
+			} else {
+				fmt.Fprintln(c.errors, err.Msg)
+			}
+		}
+	}
+	if c.errored() {
+		return
+	}
+	c.fileSet = pkgs[0].Fset
+	files := pkgs[0].Syntax
+	c.types = pkgs[0].TypesInfo
 
 	// Preamble
 	c.write(preamble)
@@ -770,7 +755,7 @@ func (c *Compiler) compile() {
 	var typeSpecs []*ast.TypeSpec
 	{
 		typeSpecTopLevel := make(map[*ast.TypeSpec]bool)
-		for _, file := range c.files {
+		for _, file := range files {
 			for _, decl := range file.Decls {
 				if decl, ok := decl.(*ast.GenDecl); ok {
 					for _, spec := range decl.Specs {
@@ -795,7 +780,7 @@ func (c *Compiler) compile() {
 			}
 			return true
 		}
-		for _, file := range c.files {
+		for _, file := range files {
 			for _, decl := range file.Decls {
 				if decl, ok := decl.(*ast.FuncDecl); ok {
 					ast.Inspect(decl, collectTypeSpecs)
@@ -828,7 +813,7 @@ func (c *Compiler) compile() {
 	// Function declarations
 	c.write("\n\n")
 	c.write("//\n// Function declarations\n//\n\n")
-	for _, file := range c.files {
+	for _, file := range files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
 				c.write(c.genFuncDecl(decl))
@@ -840,7 +825,7 @@ func (c *Compiler) compile() {
 	// Function definitions
 	c.write("\n\n")
 	c.write("//\n// Function definitions\n//\n")
-	for _, file := range c.files {
+	for _, file := range files {
 		for _, decl := range file.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
 				if decl.Body != nil {
@@ -862,14 +847,14 @@ func (c *Compiler) compile() {
 func main() {
 	// Arguments
 	if len(os.Args) != 3 {
-		fmt.Println("usage: gx <input_directory> <output_file>")
+		fmt.Println("usage: gx <main_package_path> <output_file>")
 		return
 	}
-	directoryPath := os.Args[1]
+	mainPkgPath := os.Args[1]
 	outputPath := os.Args[2]
 
 	// Compile
-	c := Compiler{directoryPath: directoryPath}
+	c := Compiler{mainPkgPath: mainPkgPath}
 	c.compile()
 
 	// Print output

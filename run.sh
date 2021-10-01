@@ -30,7 +30,7 @@ case "$1" in
   release)
     $GO build gx.go
     rm -rf example.gx.cc
-    $TIME ./gx example example.gx.cc
+    $TIME ./gx ./example example.gx.cc
     rm gx
     if [[ -f example.gx.cc ]]; then
       $CLANG -std=c++20 -Wall -O3 -o output example.gx.cc || true
