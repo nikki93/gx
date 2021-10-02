@@ -8,6 +8,7 @@ import (
 	"go/types"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -808,33 +809,59 @@ func (c *Compiler) compile() {
 	// Collect top-level decls
 	var funcDecls []*ast.FuncDecl
 	var typeSpecs []*ast.TypeSpec
-	typeSpecSeen := make(map[*ast.TypeSpec]bool)
-	for _, pkg := range pkgs {
-		for _, file := range pkg.Syntax {
-			for _, decl := range file.Decls {
-				switch decl := decl.(type) {
-				case *ast.FuncDecl:
-					funcDecls = append(funcDecls, decl)
-				case *ast.GenDecl:
-					var collect func(typeSpec *ast.TypeSpec)
-					visit := func(node ast.Node) bool {
-						if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
-							if typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
+	{
+		typeSpecSeen := make(map[*ast.TypeSpec]bool)
+		for _, pkg := range pkgs {
+			for _, file := range pkg.Syntax {
+				for _, decl := range file.Decls {
+					switch decl := decl.(type) {
+					case *ast.FuncDecl:
+						funcDecls = append(funcDecls, decl)
+					case *ast.GenDecl:
+						var collect func(typeSpec *ast.TypeSpec)
+						visit := func(node ast.Node) bool {
+							if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
+								if typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
+									collect(typeSpec)
+								}
+							}
+							return true
+						}
+						collect = func(typeSpec *ast.TypeSpec) {
+							if !typeSpecSeen[typeSpec] {
+								typeSpecSeen[typeSpec] = true
+								ast.Inspect(typeSpec, visit)
+								typeSpecs = append(typeSpecs, typeSpec)
+							}
+						}
+						for _, spec := range decl.Specs {
+							if typeSpec, ok := spec.(*ast.TypeSpec); ok {
 								collect(typeSpec)
 							}
 						}
-						return true
 					}
-					collect = func(typeSpec *ast.TypeSpec) {
-						if !typeSpecSeen[typeSpec] {
-							typeSpecSeen[typeSpec] = true
-							ast.Inspect(typeSpec, visit)
-							typeSpecs = append(typeSpecs, typeSpec)
-						}
-					}
-					for _, spec := range decl.Specs {
-						if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-							collect(typeSpec)
+				}
+			}
+		}
+	}
+
+	// `#include`s
+	{
+		re := regexp.MustCompile(`//gx:include "(.*)"`)
+		seen := make(map[string]bool)
+		for _, pkg := range pkgs {
+			for _, file := range pkg.Syntax {
+				if len(file.Comments) > 0 {
+					for _, comment := range file.Comments[0].List {
+						matches := re.FindStringSubmatch(comment.Text)
+						if len(matches) > 1 {
+							include := matches[1]
+							if !seen[include] {
+								seen[include] = true
+								c.write("#include \"")
+								c.write(include)
+								c.write("\"\n")
+							}
 						}
 					}
 				}
