@@ -753,13 +753,13 @@ func (c *Compiler) compile() {
 	// Collect packages
 	var pkgs []*packages.Package
 	{
-		packageCollected := make(map[*packages.Package]bool)
-		var collectPackage func(pkg *packages.Package)
-		collectPackage = func(pkg *packages.Package) {
-			if !packageCollected[pkg] {
-				packageCollected[pkg] = true
-				for _, depPkg := range pkg.Imports {
-					collectPackage(depPkg)
+		visited := make(map[*packages.Package]bool)
+		var visit func(pkg *packages.Package)
+		visit = func(pkg *packages.Package) {
+			if !visited[pkg] {
+				visited[pkg] = true
+				for _, dep := range pkg.Imports {
+					visit(dep)
 				}
 				pkgs = append(pkgs, pkg)
 				if pkg.Fset != c.fileSet {
@@ -768,7 +768,7 @@ func (c *Compiler) compile() {
 			}
 		}
 		for _, pkg := range loadPkgs {
-			collectPackage(pkg)
+			visit(pkg)
 		}
 	}
 
@@ -810,7 +810,7 @@ func (c *Compiler) compile() {
 	var funcDecls []*ast.FuncDecl
 	var typeSpecs []*ast.TypeSpec
 	{
-		typeSpecSeen := make(map[*ast.TypeSpec]bool)
+		typeSpecVisited := make(map[*ast.TypeSpec]bool)
 		for _, pkg := range pkgs {
 			for _, file := range pkg.Syntax {
 				for _, decl := range file.Decls {
@@ -818,25 +818,25 @@ func (c *Compiler) compile() {
 					case *ast.FuncDecl:
 						funcDecls = append(funcDecls, decl)
 					case *ast.GenDecl:
-						var collect func(typeSpec *ast.TypeSpec)
-						visit := func(node ast.Node) bool {
+						var visit func(typeSpec *ast.TypeSpec)
+						inspect := func(node ast.Node) bool {
 							if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
 								if typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
-									collect(typeSpec)
+									visit(typeSpec)
 								}
 							}
 							return true
 						}
-						collect = func(typeSpec *ast.TypeSpec) {
-							if !typeSpecSeen[typeSpec] {
-								typeSpecSeen[typeSpec] = true
-								ast.Inspect(typeSpec, visit)
+						visit = func(typeSpec *ast.TypeSpec) {
+							if !typeSpecVisited[typeSpec] {
+								typeSpecVisited[typeSpec] = true
+								ast.Inspect(typeSpec, inspect)
 								typeSpecs = append(typeSpecs, typeSpec)
 							}
 						}
 						for _, spec := range decl.Specs {
 							if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-								collect(typeSpec)
+								visit(typeSpec)
 							}
 						}
 					}
