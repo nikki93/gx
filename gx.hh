@@ -18,7 +18,7 @@ inline void print(int val) {
 }
 
 inline void print(float val) {
-  std::printf("%f", val);
+  std::printf("%g", val);
 }
 
 inline void print(double val) {
