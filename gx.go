@@ -771,12 +771,6 @@ func (c *Compiler) compile() {
 		}
 	}
 
-	// Collect files
-	var files []*ast.File
-	for _, pkg := range pkgs {
-		files = append(files, pkg.Syntax...)
-	}
-
 	// Collect type info
 	c.types = &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
@@ -811,46 +805,45 @@ func (c *Compiler) compile() {
 		}
 	}
 
-	// Preamble
-	c.write(preamble)
-
-	// Collect type specs
+	// Collect top-level decls
+	var funcDecls []*ast.FuncDecl
 	var typeSpecs []*ast.TypeSpec
-	{
-		typeSpecTopLevel := make(map[*ast.TypeSpec]bool)
-		for _, file := range files {
+	typeSpecSeen := make(map[*ast.TypeSpec]bool)
+	for _, pkg := range pkgs {
+		for _, file := range pkg.Syntax {
 			for _, decl := range file.Decls {
-				if decl, ok := decl.(*ast.GenDecl); ok {
+				switch decl := decl.(type) {
+				case *ast.FuncDecl:
+					funcDecls = append(funcDecls, decl)
+				case *ast.GenDecl:
+					var collect func(typeSpec *ast.TypeSpec)
+					visit := func(node ast.Node) bool {
+						if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
+							if typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
+								collect(typeSpec)
+							}
+						}
+						return true
+					}
+					collect = func(typeSpec *ast.TypeSpec) {
+						if !typeSpecSeen[typeSpec] {
+							typeSpecSeen[typeSpec] = true
+							ast.Inspect(typeSpec, visit)
+							typeSpecs = append(typeSpecs, typeSpec)
+						}
+					}
 					for _, spec := range decl.Specs {
 						if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-							typeSpecTopLevel[typeSpec] = true
+							collect(typeSpec)
 						}
 					}
 				}
 			}
 		}
-		typeSpecCollected := make(map[*ast.TypeSpec]bool)
-		var collectTypeSpecs func(node ast.Node) bool
-		collectTypeSpecs = func(node ast.Node) bool {
-			if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
-				if typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
-					if typeSpecTopLevel[typeSpec] && !typeSpecCollected[typeSpec] {
-						typeSpecCollected[typeSpec] = true
-						ast.Inspect(typeSpec, collectTypeSpecs)
-						typeSpecs = append(typeSpecs, typeSpec)
-					}
-				}
-			}
-			return true
-		}
-		for _, file := range files {
-			for _, decl := range file.Decls {
-				if decl, ok := decl.(*ast.FuncDecl); ok {
-					ast.Inspect(decl, collectTypeSpecs)
-				}
-			}
-		}
 	}
+
+	// Preamble
+	c.write(preamble)
 
 	// Type declarations
 	c.write("\n\n")
@@ -876,29 +869,21 @@ func (c *Compiler) compile() {
 	// Function declarations
 	c.write("\n\n")
 	c.write("//\n// Function declarations\n//\n\n")
-	for _, file := range files {
-		for _, decl := range file.Decls {
-			if decl, ok := decl.(*ast.FuncDecl); ok {
-				c.write(c.genFuncDecl(decl))
-				c.write(";\n")
-			}
-		}
+	for _, funcDecl := range funcDecls {
+		c.write(c.genFuncDecl(funcDecl))
+		c.write(";\n")
 	}
 
 	// Function definitions
 	c.write("\n\n")
 	c.write("//\n// Function definitions\n//\n")
-	for _, file := range files {
-		for _, decl := range file.Decls {
-			if decl, ok := decl.(*ast.FuncDecl); ok {
-				if decl.Body != nil {
-					c.write("\n")
-					c.write(c.genFuncDecl(decl))
-					c.write(" ")
-					c.writeBlockStmt(decl.Body)
-					c.write("\n")
-				}
-			}
+	for _, funcDecl := range funcDecls {
+		if funcDecl.Body != nil {
+			c.write("\n")
+			c.write(c.genFuncDecl(funcDecl))
+			c.write(" ")
+			c.writeBlockStmt(funcDecl.Body)
+			c.write("\n")
 		}
 	}
 }

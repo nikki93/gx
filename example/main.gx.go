@@ -547,6 +547,11 @@ func testImports() {
 		f := foo.NewFoo(42)
 		check(f.Val() == 42)
 	}
+	{
+		b := foo.Bar{X: 2, Y: 3}
+		check(b.X == 2)
+		check(b.Y == 3)
+	}
 }
 
 //
