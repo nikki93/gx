@@ -4,6 +4,7 @@ package main
 
 import (
 	"github.com/nikki93/gx/example/foo"
+	"github.com/nikki93/gx/example/person"
 )
 
 //
@@ -573,13 +574,22 @@ func area(r Rect) float32
 func (r Rect) area() float32
 
 func testExterns() {
-	r := Rect{X: 100, Y: 100, Width: 20, Height: 30}
-	check(r.X == 100)
-	check(r.Y == 100)
-	check(r.Width == 20)
-	check(r.Height == 30)
-	check(area(r) == 600)
-	check(r.area() == 600)
+	{
+		r := Rect{X: 100, Y: 100, Width: 20, Height: 30}
+		check(r.X == 100)
+		check(r.Y == 100)
+		check(r.Width == 20)
+		check(r.Height == 30)
+		check(area(r) == 600)
+		check(r.area() == 600)
+	}
+	{
+		p := person.NewPerson(20, 100)
+		check(p.Age() == 20)
+		check(p.Health() == 100)
+		p.Grow()
+		check(p.Age() == 21)
+	}
 }
 
 //

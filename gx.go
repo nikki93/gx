@@ -132,6 +132,8 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 				builder.WriteString("float")
 			case types.Float64:
 				builder.WriteString("double")
+			case types.Byte:
+				builder.WriteString("unsigned char")
 			default:
 				c.errorf(pos, "%s not supported", typ.String())
 			}
@@ -854,13 +856,25 @@ func (c *Compiler) compile() {
 	var funcDecls []*ast.FuncDecl
 	var typeSpecs []*ast.TypeSpec
 	{
+		externsRe := regexp.MustCompile(`//gx:externs (.*)`)
 		typeSpecVisited := make(map[*ast.TypeSpec]bool)
 		for _, pkg := range pkgs {
 			for _, file := range pkg.Syntax {
+				fileExt := ""
+				if len(file.Comments) > 0 {
+					for _, comment := range file.Comments[0].List {
+						matches := externsRe.FindStringSubmatch(comment.Text)
+						if len(matches) > 1 {
+							fileExt = matches[1]
+						}
+					}
+				}
 				for _, decl := range file.Decls {
 					switch decl := decl.(type) {
 					case *ast.FuncDecl:
-						if declExt := parseExtern(decl.Doc); declExt != "" {
+						if fileExt != "" {
+							c.externs[c.types.Defs[decl.Name]] = fileExt + decl.Name.String()
+						} else if declExt := parseExtern(decl.Doc); declExt != "" {
 							c.externs[c.types.Defs[decl.Name]] = declExt
 						} else {
 							funcDecls = append(funcDecls, decl)
@@ -880,7 +894,10 @@ func (c *Compiler) compile() {
 							if !typeSpecVisited[typeSpec] {
 								typeSpecVisited[typeSpec] = true
 								ast.Inspect(typeSpec, inspect)
-								if declExt != "" {
+								if fileExt != "" {
+									c.externs[c.types.Defs[typeSpec.Name]] = fileExt + typeSpec.Name.String()
+									c.collectExternFields(typeSpec)
+								} else if declExt != "" {
 									c.externs[c.types.Defs[typeSpec.Name]] = declExt
 									c.collectExternFields(typeSpec)
 								} else if specExt := parseExtern(typeSpec.Doc); specExt != "" {
