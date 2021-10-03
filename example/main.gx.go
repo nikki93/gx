@@ -562,8 +562,8 @@ func testImports() {
 
 //gx:extern rect::Rect
 type Rect struct {
-	x, y          float32
-	width, height float32
+	X, Y          float32
+	Width, Height float32
 }
 
 //gx:extern rect::area
@@ -573,11 +573,11 @@ func area(r Rect) float32
 func (r Rect) area() float32
 
 func testExterns() {
-	r := Rect{x: 100, y: 100, width: 20, height: 30}
-	check(r.x == 100)
-	check(r.y == 100)
-	check(r.width == 20)
-	check(r.height == 30)
+	r := Rect{X: 100, Y: 100, Width: 20, Height: 30}
+	check(r.X == 100)
+	check(r.Y == 100)
+	check(r.Width == 20)
+	check(r.Height == 30)
 	check(area(r) == 600)
 	check(r.area() == 600)
 }

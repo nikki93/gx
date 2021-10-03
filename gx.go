@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -84,6 +85,18 @@ func parseExtern(doc *ast.CommentGroup) string {
 		}
 	}
 	return ""
+}
+
+func (c *Compiler) collectExternFields(typeSpec *ast.TypeSpec) {
+	if typ, ok := typeSpec.Type.(*ast.StructType); ok {
+		for _, field := range typ.Fields.List {
+			for _, fieldName := range field.Names {
+				lowerFirst := []rune(fieldName.String())
+				lowerFirst[0] = unicode.ToLower(lowerFirst[0])
+				c.externs[c.types.Defs[fieldName]] = string(lowerFirst)
+			}
+		}
+	}
 }
 
 //
@@ -531,7 +544,7 @@ func (c *Compiler) writeKeyValueExpr(kv *ast.KeyValueExpr) {
 		c.errorf(kv.Pos(), "unsupported literal key")
 	} else {
 		c.write(".")
-		c.write(name.String())
+		c.writeIdent(name)
 		c.write(" = ")
 		c.writeExpr(kv.Value)
 	}
@@ -869,8 +882,10 @@ func (c *Compiler) compile() {
 								ast.Inspect(typeSpec, inspect)
 								if declExt != "" {
 									c.externs[c.types.Defs[typeSpec.Name]] = declExt
+									c.collectExternFields(typeSpec)
 								} else if specExt := parseExtern(typeSpec.Doc); specExt != "" {
 									c.externs[c.types.Defs[typeSpec.Name]] = specExt
+									c.collectExternFields(typeSpec)
 								} else {
 									typeSpecs = append(typeSpecs, typeSpec)
 								}
