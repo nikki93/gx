@@ -34,7 +34,7 @@ case "$1" in
     $TIME ./gx ./example build/example.gx.cc
     rm gx
     if [[ -f build/example.gx.cc ]]; then
-      $CLANG -std=c++20 -Wall -O3 -o output build/example.gx.cc || true
+      $CLANG -std=c++20 -Wall -O3 -Iexample -o output build/example.gx.cc || true
     fi
     if [[ -f output ]]; then
       ./output || true

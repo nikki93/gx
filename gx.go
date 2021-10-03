@@ -21,7 +21,10 @@ type Compiler struct {
 	fileSet *token.FileSet
 	types   *types.Info
 
+	externs map[types.Object]string
+
 	fieldIndices map[*types.Var]int
+
 	genTypeExprs map[types.Type]string
 	genTypeDecls map[*ast.TypeSpec]string
 	genTypeDefns map[*ast.TypeSpec]string
@@ -66,6 +69,24 @@ func trimFinalSpace(s string) string {
 }
 
 //
+// Externs
+//
+
+var externRe = regexp.MustCompile(`//gx:extern (.*)`)
+
+func parseExtern(doc *ast.CommentGroup) string {
+	if doc != nil {
+		for _, comment := range doc.List {
+			matches := externRe.FindStringSubmatch(comment.Text)
+			if len(matches) > 1 {
+				return matches[1]
+			}
+		}
+	}
+	return ""
+}
+
+//
 // Types
 //
 
@@ -106,7 +127,12 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 			builder.WriteString(c.genTypeExpr(typ.Elem(), pos))
 			builder.WriteByte('*')
 		case *types.Named:
-			builder.WriteString(typ.Obj().Name())
+			name := typ.Obj()
+			if ext, ok := c.externs[name]; ok {
+				builder.WriteString(ext)
+			} else {
+				builder.WriteString(name.Name())
+			}
 			if typeArgs := typ.TypeArgs(); typeArgs != nil {
 				builder.WriteString("<")
 				for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
@@ -314,7 +340,11 @@ func (c *Compiler) writeIdent(ident *ast.Ident) {
 	if c.types.Types[ident].IsBuiltin() {
 		c.write("gx::")
 	}
-	c.write(ident.Name) // TODO: Package namespace
+	if ext, ok := c.externs[c.types.Uses[ident]]; ok {
+		c.write(ext)
+	} else {
+		c.write(ident.Name) // TODO: Package namespace
+	}
 }
 
 func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
@@ -714,6 +744,7 @@ var preamble string
 
 func (c *Compiler) compile() {
 	// Initialize maps
+	c.externs = make(map[types.Object]string)
 	c.fieldIndices = make(map[*types.Var]int)
 	c.genTypeExprs = make(map[types.Type]string)
 	c.genTypeDecls = make(map[*ast.TypeSpec]string)
@@ -806,7 +837,7 @@ func (c *Compiler) compile() {
 		}
 	}
 
-	// Collect top-level decls
+	// Collect top-level decls and externs
 	var funcDecls []*ast.FuncDecl
 	var typeSpecs []*ast.TypeSpec
 	{
@@ -816,8 +847,13 @@ func (c *Compiler) compile() {
 				for _, decl := range file.Decls {
 					switch decl := decl.(type) {
 					case *ast.FuncDecl:
-						funcDecls = append(funcDecls, decl)
+						if declExt := parseExtern(decl.Doc); declExt != "" {
+							c.externs[c.types.Defs[decl.Name]] = declExt
+						} else {
+							funcDecls = append(funcDecls, decl)
+						}
 					case *ast.GenDecl:
+						declExt := parseExtern(decl.Doc)
 						var visit func(typeSpec *ast.TypeSpec)
 						inspect := func(node ast.Node) bool {
 							if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
@@ -831,7 +867,13 @@ func (c *Compiler) compile() {
 							if !typeSpecVisited[typeSpec] {
 								typeSpecVisited[typeSpec] = true
 								ast.Inspect(typeSpec, inspect)
-								typeSpecs = append(typeSpecs, typeSpec)
+								if declExt != "" {
+									c.externs[c.types.Defs[typeSpec.Name]] = declExt
+								} else if specExt := parseExtern(typeSpec.Doc); specExt != "" {
+									c.externs[c.types.Defs[typeSpec.Name]] = specExt
+								} else {
+									typeSpecs = append(typeSpecs, typeSpec)
+								}
 							}
 						}
 						for _, spec := range decl.Specs {
