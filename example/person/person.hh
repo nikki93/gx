@@ -12,11 +12,11 @@ inline Person NewPerson(int age, float health) {
   return Person { age, health };
 }
 
-inline int Age(Person p) {
+inline int GetAge(Person p) {
   return p.age;
 }
 
-inline float Health(Person p) {
+inline float GetHealth(Person p) {
   return p.health;
 }
 

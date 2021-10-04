@@ -872,10 +872,10 @@ func (c *Compiler) compile() {
 				for _, decl := range file.Decls {
 					switch decl := decl.(type) {
 					case *ast.FuncDecl:
-						if fileExt != "" {
-							c.externs[c.types.Defs[decl.Name]] = fileExt + decl.Name.String()
-						} else if declExt := parseExtern(decl.Doc); declExt != "" {
+						if declExt := parseExtern(decl.Doc); declExt != "" {
 							c.externs[c.types.Defs[decl.Name]] = declExt
+						} else if fileExt != "" {
+							c.externs[c.types.Defs[decl.Name]] = fileExt + decl.Name.String()
 						} else {
 							funcDecls = append(funcDecls, decl)
 						}
@@ -894,14 +894,14 @@ func (c *Compiler) compile() {
 							if !typeSpecVisited[typeSpec] {
 								typeSpecVisited[typeSpec] = true
 								ast.Inspect(typeSpec, inspect)
-								if fileExt != "" {
-									c.externs[c.types.Defs[typeSpec.Name]] = fileExt + typeSpec.Name.String()
+								if specExt := parseExtern(typeSpec.Doc); specExt != "" {
+									c.externs[c.types.Defs[typeSpec.Name]] = specExt
 									c.collectExternFields(typeSpec)
 								} else if declExt != "" {
 									c.externs[c.types.Defs[typeSpec.Name]] = declExt
 									c.collectExternFields(typeSpec)
-								} else if specExt := parseExtern(typeSpec.Doc); specExt != "" {
-									c.externs[c.types.Defs[typeSpec.Name]] = specExt
+								} else if fileExt != "" {
+									c.externs[c.types.Defs[typeSpec.Name]] = fileExt + typeSpec.Name.String()
 									c.collectExternFields(typeSpec)
 								} else {
 									typeSpecs = append(typeSpecs, typeSpec)
