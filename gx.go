@@ -22,10 +22,8 @@ type Compiler struct {
 	fileSet *token.FileSet
 	types   *types.Info
 
-	externs map[types.Object]string
-
+	externs      map[types.Object]string
 	fieldIndices map[*types.Var]int
-
 	genTypeExprs map[types.Type]string
 	genTypeDecls map[*ast.TypeSpec]string
 	genTypeDefns map[*ast.TypeSpec]string
@@ -66,36 +64,6 @@ func trimFinalSpace(s string) string {
 		return s[0 : l-1]
 	} else {
 		return s
-	}
-}
-
-//
-// Externs
-//
-
-var externRe = regexp.MustCompile(`//gx:extern (.*)`)
-
-func parseExtern(doc *ast.CommentGroup) string {
-	if doc != nil {
-		for _, comment := range doc.List {
-			matches := externRe.FindStringSubmatch(comment.Text)
-			if len(matches) > 1 {
-				return matches[1]
-			}
-		}
-	}
-	return ""
-}
-
-func (c *Compiler) collectExternFields(typeSpec *ast.TypeSpec) {
-	if typ, ok := typeSpec.Type.(*ast.StructType); ok {
-		for _, field := range typ.Fields.List {
-			for _, fieldName := range field.Names {
-				lowerFirst := []rune(fieldName.String())
-				lowerFirst[0] = unicode.ToLower(lowerFirst[0])
-				c.externs[c.types.Defs[fieldName]] = string(lowerFirst)
-			}
-		}
 	}
 }
 
@@ -857,22 +825,39 @@ func (c *Compiler) compile() {
 	var typeSpecs []*ast.TypeSpec
 	{
 		externsRe := regexp.MustCompile(`//gx:externs (.*)`)
+		externRe := regexp.MustCompile(`//gx:extern (.*)`)
+		parseDirective := func(re *regexp.Regexp, doc *ast.CommentGroup) string {
+			if doc != nil {
+				for _, comment := range doc.List {
+					if matches := re.FindStringSubmatch(comment.Text); len(matches) > 1 {
+						return matches[1]
+					}
+				}
+			}
+			return ""
+		}
+		collectExternFields := func(typeSpec *ast.TypeSpec) {
+			if typ, ok := typeSpec.Type.(*ast.StructType); ok {
+				for _, field := range typ.Fields.List {
+					for _, fieldName := range field.Names {
+						lowerFirst := []rune(fieldName.String())
+						lowerFirst[0] = unicode.ToLower(lowerFirst[0])
+						c.externs[c.types.Defs[fieldName]] = string(lowerFirst)
+					}
+				}
+			}
+		}
 		typeSpecVisited := make(map[*ast.TypeSpec]bool)
 		for _, pkg := range pkgs {
 			for _, file := range pkg.Syntax {
 				fileExt := ""
 				if len(file.Comments) > 0 {
-					for _, comment := range file.Comments[0].List {
-						matches := externsRe.FindStringSubmatch(comment.Text)
-						if len(matches) > 1 {
-							fileExt = matches[1]
-						}
-					}
+					fileExt = parseDirective(externsRe, file.Comments[0])
 				}
 				for _, decl := range file.Decls {
 					switch decl := decl.(type) {
 					case *ast.FuncDecl:
-						if declExt := parseExtern(decl.Doc); declExt != "" {
+						if declExt := parseDirective(externRe, decl.Doc); declExt != "" {
 							c.externs[c.types.Defs[decl.Name]] = declExt
 						} else if fileExt != "" {
 							c.externs[c.types.Defs[decl.Name]] = fileExt + decl.Name.String()
@@ -880,7 +865,7 @@ func (c *Compiler) compile() {
 							funcDecls = append(funcDecls, decl)
 						}
 					case *ast.GenDecl:
-						declExt := parseExtern(decl.Doc)
+						declExt := parseDirective(externRe, decl.Doc)
 						var visit func(typeSpec *ast.TypeSpec)
 						inspect := func(node ast.Node) bool {
 							if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
@@ -894,15 +879,15 @@ func (c *Compiler) compile() {
 							if !typeSpecVisited[typeSpec] {
 								typeSpecVisited[typeSpec] = true
 								ast.Inspect(typeSpec, inspect)
-								if specExt := parseExtern(typeSpec.Doc); specExt != "" {
+								if specExt := parseDirective(externRe, typeSpec.Doc); specExt != "" {
 									c.externs[c.types.Defs[typeSpec.Name]] = specExt
-									c.collectExternFields(typeSpec)
+									collectExternFields(typeSpec)
 								} else if declExt != "" {
 									c.externs[c.types.Defs[typeSpec.Name]] = declExt
-									c.collectExternFields(typeSpec)
+									collectExternFields(typeSpec)
 								} else if fileExt != "" {
 									c.externs[c.types.Defs[typeSpec.Name]] = fileExt + typeSpec.Name.String()
-									c.collectExternFields(typeSpec)
+									collectExternFields(typeSpec)
 								} else {
 									typeSpecs = append(typeSpecs, typeSpec)
 								}
@@ -927,8 +912,7 @@ func (c *Compiler) compile() {
 			for _, file := range pkg.Syntax {
 				if len(file.Comments) > 0 {
 					for _, comment := range file.Comments[0].List {
-						matches := re.FindStringSubmatch(comment.Text)
-						if len(matches) > 1 {
+						if matches := re.FindStringSubmatch(comment.Text); len(matches) > 1 {
 							include := matches[1]
 							if !seen[include] {
 								seen[include] = true
