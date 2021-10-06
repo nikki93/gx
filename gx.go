@@ -450,18 +450,35 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 		}
 	}
 	if !method {
-		c.writeExpr(call.Fun)
-		if ident, ok := call.Fun.(*ast.Ident); ok {
-			if typeArgs := c.types.Instances[ident].TypeArgs; typeArgs != nil {
-				c.write("<")
-				for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
-					if i > 0 {
-						c.write(", ")
-					}
-					c.write(trimFinalSpace(c.genTypeExpr(typeArgs.At(i), call.Fun.Pos())))
-				}
-				c.write(">")
+		var typeArgs *types.TypeList
+		switch fun := call.Fun.(type) {
+		case *ast.Ident: // f(x)
+			c.writeIdent(fun)
+			typeArgs = c.types.Instances[fun].TypeArgs
+		case *ast.SelectorExpr: // pkg.f(x)
+			c.writeIdent(fun.Sel)
+			typeArgs = c.types.Instances[fun.Sel].TypeArgs
+		case *ast.IndexExpr:
+			switch fun := fun.X.(type) {
+			case *ast.Ident: // f[T](x)
+				c.writeIdent(fun)
+				typeArgs = c.types.Instances[fun].TypeArgs
+			case *ast.SelectorExpr: // pkg.f[T](x)
+				c.writeIdent(fun.Sel)
+				typeArgs = c.types.Instances[fun.Sel].TypeArgs
 			}
+		default:
+			c.writeExpr(fun)
+		}
+		if typeArgs != nil {
+			c.write("<")
+			for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
+				if i > 0 {
+					c.write(", ")
+				}
+				c.write(trimFinalSpace(c.genTypeExpr(typeArgs.At(i), call.Fun.Pos())))
+			}
+			c.write(">")
 		}
 		c.write("(")
 	}

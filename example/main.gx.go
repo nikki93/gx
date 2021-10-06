@@ -253,6 +253,7 @@ func testGenerics() {
 	{
 		check(add(1, 2) == 3)
 		check(add(1.2, 2.0) == 3.2)
+		check(add[float64](1.2, 2.0) == 3.2)
 	}
 	{
 		i := Holder[int]{42}
