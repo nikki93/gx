@@ -1013,10 +1013,16 @@ func (c *Compiler) compile() {
 			if name.Obj.Kind == ast.Con {
 				c.write("constexpr ")
 			}
-			c.write("auto ")
+			if valueSpec.Type != nil {
+				c.write(c.genTypeExpr(c.types.TypeOf(valueSpec.Type), valueSpec.Type.Pos()))
+			} else {
+				c.write("auto ")
+			}
 			c.writeIdent(name)
-			c.write(" = ")
-			c.writeExpr(valueSpec.Values[i])
+			if len(valueSpec.Values) > 0 {
+				c.write(" = ")
+				c.writeExpr(valueSpec.Values[i])
+			}
 			c.write(";\n")
 		}
 	}

@@ -544,6 +544,7 @@ func testSeqs() {
 
 var globalY = globalX - three()
 var globalX, globalZ = initialGlobalX, 14
+var globalSlice []int
 
 const initialGlobalX = 23
 
@@ -559,13 +560,28 @@ func three() int {
 	return 3
 }
 
+func isGlobalSliceEmpty() bool {
+	return len(globalSlice) == 0
+}
+
 func testGlobalVariables() {
-	check(globalX == 23)
-	check(globalY == 20)
-	check(globalZ == 14)
-	setGlobalXToFortyTwo()
-	checkGlobalXIsFortyTwo()
-	check(initialGlobalX == 23)
+	{
+		check(globalX == 23)
+		check(globalY == 20)
+		check(globalZ == 14)
+		setGlobalXToFortyTwo()
+		checkGlobalXIsFortyTwo()
+		check(initialGlobalX == 23)
+	}
+	{
+		check(isGlobalSliceEmpty())
+		globalSlice = append(globalSlice, 1)
+		globalSlice = append(globalSlice, 2)
+		check(len(globalSlice) == 2)
+		check(globalSlice[0] == 1)
+		check(globalSlice[1] == 2)
+		check(!isGlobalSliceEmpty())
+	}
 }
 
 //
