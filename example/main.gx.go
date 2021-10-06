@@ -608,6 +608,9 @@ func testImports() {
 // Externs
 //
 
+//gx:extern rect::NUM_VERTICES
+const RectNumVertices = 0 // Ensure use of actual C++ constant value
+
 //gx:extern rect::Rect
 type Rect struct {
 	X, Y          float32
@@ -622,6 +625,7 @@ func (r Rect) area() float32
 
 func testExterns() {
 	{
+		check(RectNumVertices == 4)
 		r := Rect{X: 100, Y: 100, Width: 20, Height: 30}
 		check(r.X == 100)
 		check(r.Y == 100)
@@ -631,7 +635,9 @@ func testExterns() {
 		check(r.area() == 600)
 	}
 	{
+		check(person.Population == 0)
 		p := person.NewPerson(20, 100)
+		check(person.Population == 1)
 		check(p.Age() == 20)
 		check(p.Health() == 100)
 		p.Grow()

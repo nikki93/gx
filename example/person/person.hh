@@ -8,7 +8,10 @@ struct Person {
   float health;
 };
 
+inline int Population = 0;
+
 inline Person NewPerson(int age, float health) {
+  ++Population;
   return Person { age, health };
 }
 

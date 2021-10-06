@@ -8,6 +8,8 @@ type Person struct {
 	health float32
 }
 
+var Population int
+
 func NewPerson(age int, health float32) Person
 
 //gx:extern person::GetAge
