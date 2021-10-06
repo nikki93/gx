@@ -539,6 +539,36 @@ func testSeqs() {
 }
 
 //
+// Global variables
+//
+
+var globalY = globalX - three()
+var globalX, globalZ = initialGlobalX, 14
+
+const initialGlobalX = 23
+
+func setGlobalXToFortyTwo() {
+	globalX = 42
+}
+
+func checkGlobalXIsFortyTwo() {
+	check(globalX == 42)
+}
+
+func three() int {
+	return 3
+}
+
+func testGlobalVariables() {
+	check(globalX == 23)
+	check(globalY == 20)
+	check(globalZ == 14)
+	setGlobalXToFortyTwo()
+	checkGlobalXIsFortyTwo()
+	check(initialGlobalX == 23)
+}
+
+//
 // Imports
 //
 
@@ -611,6 +641,7 @@ func main() {
 	testArrays()
 	testSlices()
 	testSeqs()
+	testGlobalVariables()
 	testImports()
 	testExterns()
 }

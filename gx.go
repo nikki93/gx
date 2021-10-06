@@ -838,8 +838,9 @@ func (c *Compiler) compile() {
 	}
 
 	// Collect top-level decls and externs
-	var funcDecls []*ast.FuncDecl
 	var typeSpecs []*ast.TypeSpec
+	var valueSpecs []*ast.ValueSpec
+	var funcDecls []*ast.FuncDecl
 	{
 		externsRe := regexp.MustCompile(`//gx:externs (.*)`)
 		externRe := regexp.MustCompile(`//gx:extern (.*)`)
@@ -853,18 +854,8 @@ func (c *Compiler) compile() {
 			}
 			return ""
 		}
-		collectExternFields := func(typeSpec *ast.TypeSpec) {
-			if typ, ok := typeSpec.Type.(*ast.StructType); ok {
-				for _, field := range typ.Fields.List {
-					for _, fieldName := range field.Names {
-						lowerFirst := []rune(fieldName.String())
-						lowerFirst[0] = unicode.ToLower(lowerFirst[0])
-						c.externs[c.types.Defs[fieldName]] = string(lowerFirst)
-					}
-				}
-			}
-		}
 		typeSpecVisited := make(map[*ast.TypeSpec]bool)
+		valueSpecVisited := make(map[*ast.ValueSpec]bool)
 		for _, pkg := range pkgs {
 			for _, file := range pkg.Syntax {
 				fileExt := ""
@@ -873,6 +864,82 @@ func (c *Compiler) compile() {
 				}
 				for _, decl := range file.Decls {
 					switch decl := decl.(type) {
+					case *ast.GenDecl:
+						declExt := parseDirective(externRe, decl.Doc)
+						for _, spec := range decl.Specs {
+							switch spec := spec.(type) {
+							case *ast.TypeSpec:
+								collectExternFields := func(typeSpec *ast.TypeSpec) {
+									if typ, ok := typeSpec.Type.(*ast.StructType); ok {
+										for _, field := range typ.Fields.List {
+											for _, fieldName := range field.Names {
+												lowerFirst := []rune(fieldName.String())
+												lowerFirst[0] = unicode.ToLower(lowerFirst[0])
+												c.externs[c.types.Defs[fieldName]] = string(lowerFirst)
+											}
+										}
+									}
+								}
+								var collectTypeSpec func(typeSpec *ast.TypeSpec)
+								inspect := func(node ast.Node) bool {
+									if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
+										if typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
+											collectTypeSpec(typeSpec)
+										}
+									}
+									return true
+								}
+								collectTypeSpec = func(typeSpec *ast.TypeSpec) {
+									if !typeSpecVisited[typeSpec] {
+										typeSpecVisited[typeSpec] = true
+										ast.Inspect(typeSpec, inspect)
+										if specExt := parseDirective(externRe, typeSpec.Doc); specExt != "" {
+											c.externs[c.types.Defs[typeSpec.Name]] = specExt
+											collectExternFields(typeSpec)
+										} else if declExt != "" {
+											c.externs[c.types.Defs[typeSpec.Name]] = declExt
+											collectExternFields(typeSpec)
+										} else if fileExt != "" {
+											c.externs[c.types.Defs[typeSpec.Name]] = fileExt + typeSpec.Name.String()
+											collectExternFields(typeSpec)
+										} else {
+											typeSpecs = append(typeSpecs, typeSpec)
+										}
+									}
+								}
+								collectTypeSpec(spec)
+							case *ast.ValueSpec:
+								var collectValueSpec func(valueSpec *ast.ValueSpec)
+								inspect := func(node ast.Node) bool {
+									if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
+										if valueSpec, ok := ident.Obj.Decl.(*ast.ValueSpec); ok {
+											collectValueSpec(valueSpec)
+										}
+									}
+									return true
+								}
+								collectValueSpec = func(valueSpec *ast.ValueSpec) {
+									if !valueSpecVisited[valueSpec] {
+										valueSpecVisited[valueSpec] = true
+										ast.Inspect(valueSpec, inspect)
+										specExt := parseDirective(externRe, spec.Doc)
+										for _, name := range spec.Names {
+											if specExt != "" {
+												c.externs[c.types.Defs[name]] = specExt
+											} else if declExt != "" {
+												c.externs[c.types.Defs[name]] = declExt
+											} else if fileExt != "" {
+												c.externs[c.types.Defs[name]] = fileExt + name.String()
+											}
+										}
+										if specExt == "" && declExt == "" && fileExt == "" {
+											valueSpecs = append(valueSpecs, valueSpec)
+										}
+									}
+								}
+								collectValueSpec(spec)
+							}
+						}
 					case *ast.FuncDecl:
 						if declExt := parseDirective(externRe, decl.Doc); declExt != "" {
 							c.externs[c.types.Defs[decl.Name]] = declExt
@@ -880,40 +947,6 @@ func (c *Compiler) compile() {
 							c.externs[c.types.Defs[decl.Name]] = fileExt + decl.Name.String()
 						} else {
 							funcDecls = append(funcDecls, decl)
-						}
-					case *ast.GenDecl:
-						declExt := parseDirective(externRe, decl.Doc)
-						var visit func(typeSpec *ast.TypeSpec)
-						inspect := func(node ast.Node) bool {
-							if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
-								if typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
-									visit(typeSpec)
-								}
-							}
-							return true
-						}
-						visit = func(typeSpec *ast.TypeSpec) {
-							if !typeSpecVisited[typeSpec] {
-								typeSpecVisited[typeSpec] = true
-								ast.Inspect(typeSpec, inspect)
-								if specExt := parseDirective(externRe, typeSpec.Doc); specExt != "" {
-									c.externs[c.types.Defs[typeSpec.Name]] = specExt
-									collectExternFields(typeSpec)
-								} else if declExt != "" {
-									c.externs[c.types.Defs[typeSpec.Name]] = declExt
-									collectExternFields(typeSpec)
-								} else if fileExt != "" {
-									c.externs[c.types.Defs[typeSpec.Name]] = fileExt + typeSpec.Name.String()
-									collectExternFields(typeSpec)
-								} else {
-									typeSpecs = append(typeSpecs, typeSpec)
-								}
-							}
-						}
-						for _, spec := range decl.Specs {
-							if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-								visit(typeSpec)
-							}
 						}
 					}
 				}
@@ -947,19 +980,15 @@ func (c *Compiler) compile() {
 	// Preamble
 	c.write(preamble)
 
-	// Type declarations
+	// Types
 	c.write("\n\n")
-	c.write("//\n// Type declarations\n//\n\n")
+	c.write("//\n// Types\n//\n\n")
 	for _, typeSpec := range typeSpecs {
 		if typeDecl := c.genTypeDecl(typeSpec); typeDecl != "" {
 			c.write(typeDecl)
 			c.write(";\n")
 		}
 	}
-
-	// Type definitions
-	c.write("\n\n")
-	c.write("//\n// Type definitions\n//\n")
 	for _, typeSpec := range typeSpecs {
 		if typeDefn := c.genTypeDefn(typeSpec); typeDefn != "" {
 			c.write("\n")
@@ -974,6 +1003,22 @@ func (c *Compiler) compile() {
 	for _, funcDecl := range funcDecls {
 		c.write(c.genFuncDecl(funcDecl))
 		c.write(";\n")
+	}
+
+	// Variables
+	c.write("\n\n")
+	c.write("//\n// Variables\n//\n\n")
+	for _, valueSpec := range valueSpecs {
+		for i, name := range valueSpec.Names {
+			if name.Obj.Kind == ast.Con {
+				c.write("constexpr ")
+			}
+			c.write("auto ")
+			c.writeIdent(name)
+			c.write(" = ")
+			c.writeExpr(valueSpec.Values[i])
+			c.write(";\n")
+		}
 	}
 
 	// Function definitions
