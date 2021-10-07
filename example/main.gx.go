@@ -657,6 +657,15 @@ func testConversions() {
 		d := 2.2
 		check(f-float32(d) == 0)
 	}
+	{
+		slice := []int{1, 2}
+		seq := Seq[int](slice)
+		seq.add(3)
+		check(seq.len() == 3)
+		check(seq[0] == 1)
+		check(seq[1] == 2)
+		check(seq[2] == 3)
+	}
 }
 
 //
