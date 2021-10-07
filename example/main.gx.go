@@ -190,7 +190,12 @@ func testStruct() {
 		pp := &p
 		d := PtrPtr{pp}
 		**d.pp = 14
+		check(d.pp != nil)
 		check(i == 14)
+	}
+	{
+		p := PtrPtr{}
+		check(p.pp == nil)
 	}
 }
 

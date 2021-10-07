@@ -320,7 +320,12 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 //
 
 func (c *Compiler) writeIdent(ident *ast.Ident) {
-	if c.types.Types[ident].IsBuiltin() {
+	typ := c.types.Types[ident]
+	if typ.IsNil() {
+		c.write("nullptr")
+		return
+	}
+	if typ.IsBuiltin() {
 		c.write("gx::")
 	}
 	if ext, ok := c.externs[c.types.Uses[ident]]; ok {
