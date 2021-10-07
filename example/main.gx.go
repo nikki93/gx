@@ -646,6 +646,20 @@ func testExterns() {
 }
 
 //
+// Conversions
+//
+
+func testConversions() {
+	{
+		f := float32(2.2)
+		i := int(f)
+		check(i == 2)
+		d := 2.2
+		check(f-float32(d) == 0)
+	}
+}
+
+//
 // Main
 //
 
@@ -666,4 +680,5 @@ func main() {
 	testGlobalVariables()
 	testImports()
 	testExterns()
+	testConversions()
 }

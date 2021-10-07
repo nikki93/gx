@@ -429,56 +429,69 @@ func (c *Compiler) writeIndexExpr(ind *ast.IndexExpr) {
 
 func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 	method := false
-	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-		if sig, ok := c.types.Uses[sel.Sel].Type().(*types.Signature); ok && sig.Recv() != nil {
-			method = true
-			c.writeIdent(sel.Sel)
-			c.write("(")
-			_, xPtr := c.types.TypeOf(sel.X).(*types.Pointer)
-			_, recvPtr := sig.Recv().Type().(*types.Pointer)
-			if xPtr && !recvPtr {
-				c.write("*(")
-				c.writeExpr(sel.X)
-				c.write(")")
-			} else if !xPtr && recvPtr {
-				c.write("&(")
-				c.writeExpr(sel.X)
-				c.write(")")
-			} else {
-				c.writeExpr(sel.X)
+	funType := c.types.Types[call.Fun]
+	if _, ok := funType.Type.(*types.Signature); ok || funType.IsBuiltin() { // Function or method
+		if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+			if sig, ok := c.types.Uses[sel.Sel].Type().(*types.Signature); ok && sig.Recv() != nil {
+				method = true
+				c.writeIdent(sel.Sel)
+				c.write("(")
+				_, xPtr := c.types.TypeOf(sel.X).(*types.Pointer)
+				_, recvPtr := sig.Recv().Type().(*types.Pointer)
+				if xPtr && !recvPtr {
+					c.write("*(")
+					c.writeExpr(sel.X)
+					c.write(")")
+				} else if !xPtr && recvPtr {
+					c.write("&(")
+					c.writeExpr(sel.X)
+					c.write(")")
+				} else {
+					c.writeExpr(sel.X)
+				}
 			}
 		}
-	}
-	if !method {
-		var typeArgs *types.TypeList
-		switch fun := call.Fun.(type) {
-		case *ast.Ident: // f(x)
-			c.writeIdent(fun)
-			typeArgs = c.types.Instances[fun].TypeArgs
-		case *ast.SelectorExpr: // pkg.f(x)
-			c.writeIdent(fun.Sel)
-			typeArgs = c.types.Instances[fun.Sel].TypeArgs
-		case *ast.IndexExpr:
-			switch fun := fun.X.(type) {
-			case *ast.Ident: // f[T](x)
+		if !method {
+			var typeArgs *types.TypeList
+			switch fun := call.Fun.(type) {
+			case *ast.Ident: // f(x)
 				c.writeIdent(fun)
 				typeArgs = c.types.Instances[fun].TypeArgs
-			case *ast.SelectorExpr: // pkg.f[T](x)
+			case *ast.SelectorExpr: // pkg.f(x)
 				c.writeIdent(fun.Sel)
 				typeArgs = c.types.Instances[fun.Sel].TypeArgs
-			}
-		default:
-			c.writeExpr(fun)
-		}
-		if typeArgs != nil {
-			c.write("<")
-			for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
-				if i > 0 {
-					c.write(", ")
+			case *ast.IndexExpr:
+				switch fun := fun.X.(type) {
+				case *ast.Ident: // f[T](x)
+					c.writeIdent(fun)
+					typeArgs = c.types.Instances[fun].TypeArgs
+				case *ast.SelectorExpr: // pkg.f[T](x)
+					c.writeIdent(fun.Sel)
+					typeArgs = c.types.Instances[fun.Sel].TypeArgs
 				}
-				c.write(trimFinalSpace(c.genTypeExpr(typeArgs.At(i), call.Fun.Pos())))
+			default:
+				c.writeExpr(fun)
 			}
-			c.write(">")
+			if typeArgs != nil {
+				c.write("<")
+				for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
+					if i > 0 {
+						c.write(", ")
+					}
+					c.write(trimFinalSpace(c.genTypeExpr(typeArgs.At(i), call.Fun.Pos())))
+				}
+				c.write(">")
+			}
+			c.write("(")
+		}
+	} else { // Conversion
+		typeExpr := trimFinalSpace(c.genTypeExpr(funType.Type, call.Fun.Pos()))
+		if _, ok := call.Fun.(*ast.ParenExpr); ok {
+			c.write("(")
+			c.write(typeExpr)
+			c.write(")")
+		} else {
+			c.write(typeExpr)
 		}
 		c.write("(")
 	}
