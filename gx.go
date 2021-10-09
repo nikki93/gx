@@ -893,7 +893,7 @@ func (c *Compiler) compile() {
 						for _, spec := range decl.Specs {
 							switch spec := spec.(type) {
 							case *ast.TypeSpec:
-								collectExternFields := func(typeSpec *ast.TypeSpec) {
+								visitExternFields := func(typeSpec *ast.TypeSpec) {
 									if typ, ok := typeSpec.Type.(*ast.StructType); ok {
 										for _, field := range typ.Fields.List {
 											for _, fieldName := range field.Names {
@@ -904,45 +904,45 @@ func (c *Compiler) compile() {
 										}
 									}
 								}
-								var collectTypeSpec func(typeSpec *ast.TypeSpec)
+								var visitTypeSpec func(typeSpec *ast.TypeSpec)
 								inspect := func(node ast.Node) bool {
 									if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
 										if typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
-											collectTypeSpec(typeSpec)
+											visitTypeSpec(typeSpec)
 										}
 									}
 									return true
 								}
-								collectTypeSpec = func(typeSpec *ast.TypeSpec) {
+								visitTypeSpec = func(typeSpec *ast.TypeSpec) {
 									if !typeSpecVisited[typeSpec] {
 										typeSpecVisited[typeSpec] = true
 										ast.Inspect(typeSpec, inspect)
 										if specExt := parseDirective(externRe, typeSpec.Doc); specExt != "" {
 											c.externs[c.types.Defs[typeSpec.Name]] = specExt
-											collectExternFields(typeSpec)
+											visitExternFields(typeSpec)
 										} else if declExt != "" {
 											c.externs[c.types.Defs[typeSpec.Name]] = declExt
-											collectExternFields(typeSpec)
+											visitExternFields(typeSpec)
 										} else if fileExt != "" {
 											c.externs[c.types.Defs[typeSpec.Name]] = fileExt + typeSpec.Name.String()
-											collectExternFields(typeSpec)
+											visitExternFields(typeSpec)
 										} else {
 											typeSpecs = append(typeSpecs, typeSpec)
 										}
 									}
 								}
-								collectTypeSpec(spec)
+								visitTypeSpec(spec)
 							case *ast.ValueSpec:
-								var collectValueSpec func(valueSpec *ast.ValueSpec)
+								var visitValueSpec func(valueSpec *ast.ValueSpec)
 								inspect := func(node ast.Node) bool {
 									if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
 										if valueSpec, ok := ident.Obj.Decl.(*ast.ValueSpec); ok {
-											collectValueSpec(valueSpec)
+											visitValueSpec(valueSpec)
 										}
 									}
 									return true
 								}
-								collectValueSpec = func(valueSpec *ast.ValueSpec) {
+								visitValueSpec = func(valueSpec *ast.ValueSpec) {
 									if !valueSpecVisited[valueSpec] {
 										valueSpecVisited[valueSpec] = true
 										ast.Inspect(valueSpec, inspect)
@@ -961,7 +961,7 @@ func (c *Compiler) compile() {
 										}
 									}
 								}
-								collectValueSpec(spec)
+								visitValueSpec(spec)
 							}
 						}
 					case *ast.FuncDecl:
@@ -981,15 +981,15 @@ func (c *Compiler) compile() {
 	// `#include`s
 	{
 		re := regexp.MustCompile(`//gx:include "(.*)"`)
-		seen := make(map[string]bool)
+		visited := make(map[string]bool)
 		for _, pkg := range pkgs {
 			for _, file := range pkg.Syntax {
 				if len(file.Comments) > 0 {
 					for _, comment := range file.Comments[0].List {
 						if matches := re.FindStringSubmatch(comment.Text); len(matches) > 1 {
 							include := matches[1]
-							if !seen[include] {
-								seen[include] = true
+							if !visited[include] {
+								visited[include] = true
 								c.write("#include \"")
 								c.write(include)
 								c.write("\"\n")
