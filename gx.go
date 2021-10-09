@@ -540,7 +540,8 @@ func (c *Compiler) writeBinaryExpr(bin *ast.BinaryExpr) {
 	switch op := bin.Op; op {
 	case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ,
 		token.ADD, token.SUB, token.MUL, token.QUO, token.REM,
-		token.AND, token.OR, token.XOR, token.SHL, token.SHR:
+		token.AND, token.OR, token.XOR, token.SHL, token.SHR,
+		token.LAND, token.LOR:
 		c.write(op.String())
 	default:
 		c.errorf(bin.OpPos, "unsupported binary operator")
