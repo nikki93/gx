@@ -337,7 +337,12 @@ func (c *Compiler) writeIdent(ident *ast.Ident) {
 
 func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 	switch lit.Kind {
-	case token.INT, token.FLOAT, token.STRING:
+	case token.INT:
+		c.write(lit.Value)
+	case token.FLOAT:
+		c.write(lit.Value)
+		c.write("f")
+	case token.STRING:
 		c.write(lit.Value)
 	default:
 		c.errorf(lit.Pos(), "unsupported literal kind")
