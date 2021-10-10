@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	_ "embed"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
+	"io"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -1159,7 +1161,30 @@ func main() {
 		fmt.Println(c.errors)
 		os.Exit(1)
 	} else {
-		ioutil.WriteFile(outputPrefix+".gx.cc", []byte(c.outputCC.String()), 0644)
-		ioutil.WriteFile(outputPrefix+".gx.hh", []byte(c.outputHH.String()), 0644)
+		readersEqual := func(a, b io.Reader) bool {
+			bufA := make([]byte, 1024)
+			bufB := make([]byte, 1024)
+			for {
+				nA, errA := io.ReadFull(a, bufA)
+				nB, _ := io.ReadFull(b, bufB)
+				if !bytes.Equal(bufA[:nA], bufB[:nB]) {
+					return false
+				}
+				if errA == io.EOF {
+					return true
+				}
+			}
+		}
+		writeFileIfChanged := func(path string, contents string) {
+			if f, err := os.Open(path); err == nil {
+				defer f.Close()
+				if readersEqual(f, strings.NewReader(contents)) {
+					return
+				}
+			}
+			ioutil.WriteFile(path, []byte(contents), 0644)
+		}
+		writeFileIfChanged(outputPrefix+".gx.cc", c.outputCC.String())
+		writeFileIfChanged(outputPrefix+".gx.hh", c.outputHH.String())
 	}
 }
