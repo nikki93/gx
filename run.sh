@@ -30,8 +30,8 @@ case "$1" in
   release)
     mkdir -p build
     $GO build gx.go
-    rm -rf build/example.gx.cc
-    $TIME ./gx ./example build/example.gx.cc
+    rm -rf build/example.gx.*
+    $TIME ./gx ./example build/example
     rm gx
     if [[ -f build/example.gx.cc ]]; then
       $CLANG -std=c++20 -Wall -O3 -Iexample -o output build/example.gx.cc || true

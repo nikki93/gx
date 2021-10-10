@@ -31,7 +31,8 @@ type Compiler struct {
 
 	indent     int
 	errors     *strings.Builder
-	output     *strings.Builder
+	outputCC   *strings.Builder
+	outputHH   *strings.Builder
 	atBlockEnd bool
 }
 
@@ -51,12 +52,12 @@ func (c *Compiler) errored() bool {
 
 func (c *Compiler) write(s string) {
 	c.atBlockEnd = false
-	if peek := c.output.String(); len(peek) > 0 && peek[len(peek)-1] == '\n' {
+	if peek := c.outputCC.String(); len(peek) > 0 && peek[len(peek)-1] == '\n' {
 		for i := 0; i < 2*c.indent; i++ {
-			c.output.WriteByte(' ')
+			c.outputCC.WriteByte(' ')
 		}
 	}
-	c.output.WriteString(s)
+	c.outputCC.WriteString(s)
 }
 
 func trimFinalSpace(s string) string {
@@ -777,7 +778,8 @@ func (c *Compiler) compile() {
 
 	// Initialize builders
 	c.errors = &strings.Builder{}
-	c.output = &strings.Builder{}
+	c.outputCC = &strings.Builder{}
+	c.outputHH = &strings.Builder{}
 
 	// Load main package
 	packagesConfig := &packages.Config{
@@ -863,6 +865,8 @@ func (c *Compiler) compile() {
 
 	// Collect top-level decls and externs
 	var typeSpecs []*ast.TypeSpec
+	exportedTypeSpecs := make(map[*ast.TypeSpec]bool)
+	behaviorTypeSpecs := make(map[*ast.TypeSpec]bool)
 	var valueSpecs []*ast.ValueSpec
 	var funcDecls []*ast.FuncDecl
 	{
@@ -904,19 +908,37 @@ func (c *Compiler) compile() {
 										}
 									}
 								}
-								var visitTypeSpec func(typeSpec *ast.TypeSpec)
-								inspect := func(node ast.Node) bool {
-									if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
-										if typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
-											visitTypeSpec(typeSpec)
+								var visitTypeSpec func(typeSpec *ast.TypeSpec, export bool)
+								visitTypeSpec = func(typeSpec *ast.TypeSpec, export bool) {
+									visited := typeSpecVisited[typeSpec]
+									if visited && !(export && !exportedTypeSpecs[typeSpec]) {
+										return
+									}
+									if export {
+										exportedTypeSpecs[typeSpec] = true
+									}
+									if !visited {
+										typeSpecVisited[typeSpec] = true
+										if structType, ok := typeSpec.Type.(*ast.StructType); ok {
+											for _, field := range structType.Fields.List {
+												if field.Names == nil {
+													if ident, ok := field.Type.(*ast.Ident); ok && ident.Name == "Behavior" {
+														behaviorTypeSpecs[typeSpec] = true
+														export = true
+													}
+												}
+											}
 										}
 									}
-									return true
-								}
-								visitTypeSpec = func(typeSpec *ast.TypeSpec) {
-									if !typeSpecVisited[typeSpec] {
-										typeSpecVisited[typeSpec] = true
-										ast.Inspect(typeSpec, inspect)
+									ast.Inspect(typeSpec, func(node ast.Node) bool {
+										if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
+											if typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
+												visitTypeSpec(typeSpec, export)
+											}
+										}
+										return true
+									})
+									if !visited {
 										if specExt := parseDirective(externRe, typeSpec.Doc); specExt != "" {
 											c.externs[c.types.Defs[typeSpec.Name]] = specExt
 											visitExternFields(typeSpec)
@@ -931,34 +953,34 @@ func (c *Compiler) compile() {
 										}
 									}
 								}
-								visitTypeSpec(spec)
+								visitTypeSpec(spec, false)
 							case *ast.ValueSpec:
 								var visitValueSpec func(valueSpec *ast.ValueSpec)
-								inspect := func(node ast.Node) bool {
-									if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
-										if valueSpec, ok := ident.Obj.Decl.(*ast.ValueSpec); ok {
-											visitValueSpec(valueSpec)
-										}
-									}
-									return true
-								}
 								visitValueSpec = func(valueSpec *ast.ValueSpec) {
-									if !valueSpecVisited[valueSpec] {
-										valueSpecVisited[valueSpec] = true
-										ast.Inspect(valueSpec, inspect)
-										specExt := parseDirective(externRe, spec.Doc)
-										for _, name := range spec.Names {
-											if specExt != "" {
-												c.externs[c.types.Defs[name]] = specExt
-											} else if declExt != "" {
-												c.externs[c.types.Defs[name]] = declExt
-											} else if fileExt != "" {
-												c.externs[c.types.Defs[name]] = fileExt + name.String()
+									if valueSpecVisited[valueSpec] {
+										return
+									}
+									valueSpecVisited[valueSpec] = true
+									ast.Inspect(valueSpec, func(node ast.Node) bool {
+										if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
+											if valueSpec, ok := ident.Obj.Decl.(*ast.ValueSpec); ok {
+												visitValueSpec(valueSpec)
 											}
 										}
-										if specExt == "" && declExt == "" && fileExt == "" {
-											valueSpecs = append(valueSpecs, valueSpec)
+										return true
+									})
+									specExt := parseDirective(externRe, spec.Doc)
+									for _, name := range spec.Names {
+										if specExt != "" {
+											c.externs[c.types.Defs[name]] = specExt
+										} else if declExt != "" {
+											c.externs[c.types.Defs[name]] = declExt
+										} else if fileExt != "" {
+											c.externs[c.types.Defs[name]] = fileExt + name.String()
 										}
+									}
+									if specExt == "" && declExt == "" && fileExt == "" {
+										valueSpecs = append(valueSpecs, valueSpec)
 									}
 								}
 								visitValueSpec(spec)
@@ -979,9 +1001,11 @@ func (c *Compiler) compile() {
 	}
 
 	// `#include`s
+	var includes string
 	{
 		re := regexp.MustCompile(`//gx:include "(.*)"`)
 		visited := make(map[string]bool)
+		builder := &strings.Builder{}
 		for _, pkg := range pkgs {
 			for _, file := range pkg.Syntax {
 				if len(file.Comments) > 0 {
@@ -990,79 +1014,126 @@ func (c *Compiler) compile() {
 							include := matches[1]
 							if !visited[include] {
 								visited[include] = true
-								c.write("#include \"")
-								c.write(include)
-								c.write("\"\n")
+								builder.WriteString("#include \"")
+								builder.WriteString(include)
+								builder.WriteString("\"\n")
 							}
 						}
 					}
 				}
 			}
 		}
+		includes = builder.String()
 	}
 
-	// Preamble
-	c.write(preamble)
+	// Output '.cc'
+	{
+		// Includes, preamble
+		c.write(includes)
+		c.write(preamble)
 
-	// Types
-	c.write("\n\n")
-	c.write("//\n// Types\n//\n\n")
-	for _, typeSpec := range typeSpecs {
-		if typeDecl := c.genTypeDecl(typeSpec); typeDecl != "" {
-			c.write(typeDecl)
-			c.write(";\n")
-		}
-	}
-	for _, typeSpec := range typeSpecs {
-		if typeDefn := c.genTypeDefn(typeSpec); typeDefn != "" {
-			c.write("\n")
-			c.write(typeDefn)
-			c.write(";\n")
-		}
-	}
-
-	// Function declarations
-	c.write("\n\n")
-	c.write("//\n// Function declarations\n//\n\n")
-	for _, funcDecl := range funcDecls {
-		c.write(c.genFuncDecl(funcDecl))
-		c.write(";\n")
-	}
-
-	// Variables
-	c.write("\n\n")
-	c.write("//\n// Variables\n//\n\n")
-	for _, valueSpec := range valueSpecs {
-		for i, name := range valueSpec.Names {
-			c.write("inline ")
-			if name.Obj.Kind == ast.Con {
-				c.write("constexpr ")
+		// Types
+		c.write("\n\n")
+		c.write("//\n// Types\n//\n\n")
+		for _, typeSpec := range typeSpecs {
+			if typeDecl := c.genTypeDecl(typeSpec); typeDecl != "" {
+				c.write(typeDecl)
+				c.write(";\n")
 			}
-			if valueSpec.Type != nil {
-				c.write(c.genTypeExpr(c.types.TypeOf(valueSpec.Type), valueSpec.Type.Pos()))
-			} else {
-				c.write("auto ")
-			}
-			c.writeIdent(name)
-			if len(valueSpec.Values) > 0 {
-				c.write(" = ")
-				c.writeExpr(valueSpec.Values[i])
-			}
-			c.write(";\n")
 		}
-	}
+		for _, typeSpec := range typeSpecs {
+			if typeDefn := c.genTypeDefn(typeSpec); typeDefn != "" {
+				c.write("\n")
+				c.write(typeDefn)
+				c.write(";\n")
+			}
+		}
 
-	// Function definitions
-	c.write("\n\n")
-	c.write("//\n// Function definitions\n//\n")
-	for _, funcDecl := range funcDecls {
-		if funcDecl.Body != nil {
-			c.write("\n")
+		// Function declarations
+		c.write("\n\n")
+		c.write("//\n// Function declarations\n//\n\n")
+		for _, funcDecl := range funcDecls {
 			c.write(c.genFuncDecl(funcDecl))
-			c.write(" ")
-			c.writeBlockStmt(funcDecl.Body)
-			c.write("\n")
+			c.write(";\n")
 		}
+
+		// Variables
+		c.write("\n\n")
+		c.write("//\n// Variables\n//\n\n")
+		for _, valueSpec := range valueSpecs {
+			for i, name := range valueSpec.Names {
+				c.write("inline ")
+				if name.Obj.Kind == ast.Con {
+					c.write("constexpr ")
+				}
+				if valueSpec.Type != nil {
+					c.write(c.genTypeExpr(c.types.TypeOf(valueSpec.Type), valueSpec.Type.Pos()))
+				} else {
+					c.write("auto ")
+				}
+				c.writeIdent(name)
+				if len(valueSpec.Values) > 0 {
+					c.write(" = ")
+					c.writeExpr(valueSpec.Values[i])
+				}
+				c.write(";\n")
+			}
+		}
+
+		// Function definitions
+		c.write("\n\n")
+		c.write("//\n// Function definitions\n//\n")
+		for _, funcDecl := range funcDecls {
+			if funcDecl.Body != nil {
+				c.write("\n")
+				c.write(c.genFuncDecl(funcDecl))
+				c.write(" ")
+				c.writeBlockStmt(funcDecl.Body)
+				c.write("\n")
+			}
+		}
+	}
+
+	// Output '.hh'
+	{
+		// Includes, preamble
+		c.outputHH.WriteString(includes)
+		c.outputHH.WriteString(preamble)
+
+		// Exported types
+		c.outputHH.WriteString("\n\n")
+		c.outputHH.WriteString("//\n// Types\n//\n\n")
+		for _, typeSpec := range typeSpecs {
+			if exportedTypeSpecs[typeSpec] {
+				if typeDecl := c.genTypeDecl(typeSpec); typeDecl != "" {
+					c.outputHH.WriteString(typeDecl)
+					c.outputHH.WriteString(";\n")
+				}
+			}
+		}
+		for _, typeSpec := range typeSpecs {
+			if exportedTypeSpecs[typeSpec] {
+				if typeDefn := c.genTypeDefn(typeSpec); typeDefn != "" {
+					c.outputHH.WriteString("\n")
+					if behaviorTypeSpecs[typeSpec] {
+						c.outputHH.WriteString("ComponentTypeListAdd(")
+						c.outputHH.WriteString(typeSpec.Name.String())
+						c.outputHH.WriteString(");\n")
+					}
+					c.outputHH.WriteString(typeDefn)
+					c.outputHH.WriteString(";\n")
+				}
+			}
+		}
+
+		// Function declarations
+		// TODO: Methods on exported types
+		//c.write("\n\n")
+		//c.write("//\n// Function declarations\n//\n\n")
+		//for _, funcDecl := range funcDecls {
+		//  c.write(c.genFuncDecl(funcDecl))
+		//  c.write(";\n")
+		//}
 	}
 }
 
@@ -1073,11 +1144,11 @@ func (c *Compiler) compile() {
 func main() {
 	// Arguments
 	if len(os.Args) != 3 {
-		fmt.Println("usage: gx <main_package_path> <output_file>")
+		fmt.Println("usage: gx <main_package_path> <output_prefix>")
 		return
 	}
 	mainPkgPath := os.Args[1]
-	outputPath := os.Args[2]
+	outputPrefix := os.Args[2]
 
 	// Compile
 	c := Compiler{mainPkgPath: mainPkgPath}
@@ -1088,6 +1159,7 @@ func main() {
 		fmt.Println(c.errors)
 		os.Exit(1)
 	} else {
-		ioutil.WriteFile(outputPath, []byte(c.output.String()), 0644)
+		ioutil.WriteFile(outputPrefix+".gx.cc", []byte(c.outputCC.String()), 0644)
+		ioutil.WriteFile(outputPrefix+".gx.hh", []byte(c.outputHH.String()), 0644)
 	}
 }
