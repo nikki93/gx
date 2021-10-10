@@ -1128,14 +1128,32 @@ func (c *Compiler) compile() {
 			}
 		}
 
-		// Function declarations
-		// TODO: Methods on exported types
-		//c.write("\n\n")
-		//c.write("//\n// Function declarations\n//\n\n")
-		//for _, funcDecl := range funcDecls {
-		//  c.write(c.genFuncDecl(funcDecl))
-		//  c.write(";\n")
-		//}
+		// Exported function declarations
+		c.outputHH.WriteString("\n\n")
+		c.outputHH.WriteString("//\n// Function declarations\n//\n\n")
+		for _, funcDecl := range funcDecls {
+			if funcDecl.Recv != nil {
+				for _, recv := range funcDecl.Recv.List {
+					export := false
+					ast.Inspect(recv.Type, func(node ast.Node) bool {
+						if export {
+							return false
+						}
+						if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
+							if typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec); ok && exportedTypeSpecs[typeSpec] {
+								export = true
+								return false
+							}
+						}
+						return true
+					})
+					if export {
+						c.outputHH.WriteString(c.genFuncDecl(funcDecl))
+						c.outputHH.WriteString(";\n")
+					}
+				}
+			}
+		}
 	}
 }
 
