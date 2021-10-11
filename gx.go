@@ -245,7 +245,7 @@ func (c *Compiler) genTypeProp(typeSpec *ast.TypeSpec) string {
 				}
 				builder.WriteString(">\n")
 			}
-			builder.WriteString("void forEachProp(")
+			builder.WriteString("inline void forEachProp(")
 			builder.WriteString(typeSpec.Name.String())
 			if typeSpec.TypeParams != nil {
 				builder.WriteString("<")
@@ -265,7 +265,7 @@ func (c *Compiler) genTypeProp(typeSpec *ast.TypeSpec) string {
 					for _, fieldName := range field.Names {
 						if ast.IsExported(fieldName.String()) {
 							builder.WriteString("  {\n")
-							builder.WriteString("    static constexpr GX_PROP_ATTRIBS attrs { .name = \"")
+							builder.WriteString("    static constexpr gx::PropAttribs attrs { .name = \"")
 							builder.WriteString(fieldName.String())
 							builder.WriteString("\" };\n")
 							builder.WriteString("    func(gx::PropTag<&attrs>(), val.")
