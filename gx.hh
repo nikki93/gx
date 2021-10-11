@@ -113,11 +113,11 @@ Slice<T> &append(Slice<T> &s, U &&val) {
 // Props
 //
 
-struct PropAttribs {
+struct DefaultPropAttribs {
   const char *name;
 };
 #ifndef GX_PROP_ATTRIBS
-#define GX_PROP_ATTRIBS gx::PropAttribs
+#define GX_PROP_ATTRIBS gx::DefaultPropAttribs
 #endif
 
 template<auto *attribs_>
