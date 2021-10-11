@@ -110,19 +110,19 @@ Slice<T> &append(Slice<T> &s, U &&val) {
 
 
 //
-// Props
+// Meta
 //
 
-#ifndef GX_PROP_ATTRIBS
-struct PropAttribs {
+#ifndef GX_FIELD_ATTRIBS
+struct FieldAttribs {
   const char *name;
 };
 #else
-using PropAttribs = GX_PROP_ATTRIBS;
+using FieldAttribs = GX_FIELD_ATTRIBS;
 #endif
 
 template<auto *attribs_>
-struct PropTag {
+struct FieldTag {
   inline static constexpr auto attribs = *attribs_;
 };
 

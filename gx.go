@@ -29,7 +29,7 @@ type Compiler struct {
 	genTypeExprs map[types.Type]string
 	genTypeDecls map[*ast.TypeSpec]string
 	genTypeDefns map[*ast.TypeSpec]string
-	genTypeProps map[*ast.TypeSpec]string
+	genTypeMetas map[*ast.TypeSpec]string
 	genFuncDecls map[*ast.FuncDecl]string
 
 	indent     int
@@ -69,6 +69,12 @@ func trimFinalSpace(s string) string {
 	} else {
 		return s
 	}
+}
+
+func lowerFirst(s string) string {
+	result := []rune(s)
+	result[0] = unicode.ToLower(result[0])
+	return string(result)
 }
 
 //
@@ -225,8 +231,8 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 	}
 }
 
-func (c *Compiler) genTypeProp(typeSpec *ast.TypeSpec) string {
-	if result, ok := c.genTypeProps[typeSpec]; ok {
+func (c *Compiler) genTypeMeta(typeSpec *ast.TypeSpec) string {
+	if result, ok := c.genTypeMetas[typeSpec]; ok {
 		return result
 	} else {
 		builder := &strings.Builder{}
@@ -245,7 +251,7 @@ func (c *Compiler) genTypeProp(typeSpec *ast.TypeSpec) string {
 				}
 				builder.WriteString(">\n")
 			}
-			builder.WriteString("inline void forEachProp(")
+			builder.WriteString("inline void forEachField(")
 			builder.WriteString(typeSpec.Name.String())
 			if typeSpec.TypeParams != nil {
 				builder.WriteString("<")
@@ -265,10 +271,10 @@ func (c *Compiler) genTypeProp(typeSpec *ast.TypeSpec) string {
 					for _, fieldName := range field.Names {
 						if ast.IsExported(fieldName.String()) {
 							builder.WriteString("  {\n")
-							builder.WriteString("    static constexpr gx::PropAttribs attrs { .name = \"")
-							builder.WriteString(fieldName.String())
+							builder.WriteString("    static constexpr gx::FieldAttribs attrs { .name = \"")
+							builder.WriteString(lowerFirst(fieldName.String()))
 							builder.WriteString("\" };\n")
-							builder.WriteString("    func(gx::PropTag<&attrs>(), val.")
+							builder.WriteString("    func(gx::FieldTag<&attrs>(), val.")
 							builder.WriteString(fieldName.String())
 							builder.WriteString(");\n  }\n")
 						}
@@ -282,7 +288,7 @@ func (c *Compiler) genTypeProp(typeSpec *ast.TypeSpec) string {
 			// Empty -- alias declaration is definition
 		}
 		result = builder.String()
-		c.genTypeProps[typeSpec] = result
+		c.genTypeMetas[typeSpec] = result
 		return result
 	}
 }
@@ -837,7 +843,7 @@ func (c *Compiler) compile() {
 	c.genTypeExprs = make(map[types.Type]string)
 	c.genTypeDecls = make(map[*ast.TypeSpec]string)
 	c.genTypeDefns = make(map[*ast.TypeSpec]string)
-	c.genTypeProps = make(map[*ast.TypeSpec]string)
+	c.genTypeMetas = make(map[*ast.TypeSpec]string)
 	c.genFuncDecls = make(map[*ast.FuncDecl]string)
 
 	// Initialize builders
@@ -965,9 +971,7 @@ func (c *Compiler) compile() {
 									if typ, ok := typeSpec.Type.(*ast.StructType); ok {
 										for _, field := range typ.Fields.List {
 											for _, fieldName := range field.Names {
-												lowerFirst := []rune(fieldName.String())
-												lowerFirst[0] = unicode.ToLower(lowerFirst[0])
-												c.externs[c.types.Defs[fieldName]] = string(lowerFirst)
+												c.externs[c.types.Defs[fieldName]] = lowerFirst(fieldName.String())
 											}
 										}
 									}
@@ -1113,14 +1117,14 @@ func (c *Compiler) compile() {
 			}
 		}
 
-		// Props
+		// Meta
 		c.write("\n\n")
-		c.write("//\n// Props\n//\n")
+		c.write("//\n// Meta\n//\n")
 		for _, typeSpec := range typeSpecs {
 			if typeDecl := c.genTypeDecl(typeSpec); typeDecl != "" {
-				if prop := c.genTypeProp(typeSpec); prop != "" {
+				if meta := c.genTypeMeta(typeSpec); meta != "" {
 					c.write("\n")
-					c.write(prop)
+					c.write(meta)
 					c.write("\n")
 				}
 			}
@@ -1203,15 +1207,15 @@ func (c *Compiler) compile() {
 			}
 		}
 
-		// Props
+		// Meta
 		c.outputHH.WriteString("\n\n")
-		c.outputHH.WriteString("//\n// Props\n//\n\n")
+		c.outputHH.WriteString("//\n// Meta\n//\n")
 		for _, typeSpec := range typeSpecs {
 			if exportedTypeSpecs[typeSpec] {
 				if typeDecl := c.genTypeDecl(typeSpec); typeDecl != "" {
-					if prop := c.genTypeProp(typeSpec); prop != "" {
+					if meta := c.genTypeMeta(typeSpec); meta != "" {
 						c.outputHH.WriteString("\n")
-						c.outputHH.WriteString(prop)
+						c.outputHH.WriteString(meta)
 						c.outputHH.WriteString("\n")
 					}
 				}
