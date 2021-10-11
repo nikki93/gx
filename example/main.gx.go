@@ -1,4 +1,5 @@
 //gx:include "rect.hh"
+//gx:include "sum_props.hh"
 
 package main
 
@@ -674,6 +675,22 @@ func testConversions() {
 }
 
 //
+// Props
+//
+
+type Nums struct {
+	A, B, C int
+}
+
+//gx:extern sumProps
+func sumProps(val interface{}) int
+
+func testProps() {
+	n := Nums{1, 2, 3}
+	check(sumProps(n) == 6)
+}
+
+//
 // Main
 //
 
@@ -695,4 +712,5 @@ func main() {
 	testImports()
 	testExterns()
 	testConversions()
+	testProps()
 }

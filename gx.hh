@@ -109,4 +109,21 @@ Slice<T> &append(Slice<T> &s, U &&val) {
 }
 
 
+//
+// Props
+//
+
+struct PropAttribs {
+  const char *name;
+};
+#ifndef GX_PROP_ATTRIBS
+#define GX_PROP_ATTRIBS gx::PropAttribs
+#endif
+
+template<auto *attribs_>
+struct PropTag {
+  inline static constexpr auto attribs = *attribs_;
+};
+
+
 }

@@ -29,6 +29,7 @@ type Compiler struct {
 	genTypeExprs map[types.Type]string
 	genTypeDecls map[*ast.TypeSpec]string
 	genTypeDefns map[*ast.TypeSpec]string
+	genTypeProps map[*ast.TypeSpec]string
 	genFuncDecls map[*ast.FuncDecl]string
 
 	indent     int
@@ -161,13 +162,11 @@ func (c *Compiler) genTypeDecl(typeSpec *ast.TypeSpec) string {
 		builder := &strings.Builder{}
 		if typeSpec.TypeParams != nil {
 			builder.WriteString("template<")
-			first := true
-			for _, typeParam := range typeSpec.TypeParams.List {
-				for _, name := range typeParam.Names {
-					if !first {
+			for i, typeParam := range typeSpec.TypeParams.List {
+				for j, name := range typeParam.Names {
+					if i > 0 || j > 0 {
 						builder.WriteString(", ")
 					}
-					first = false
 					builder.WriteString("typename ")
 					builder.WriteString(name.String())
 				}
@@ -222,6 +221,68 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 		}
 		result = builder.String()
 		c.genTypeDefns[typeSpec] = result
+		return result
+	}
+}
+
+func (c *Compiler) genTypeProp(typeSpec *ast.TypeSpec) string {
+	if result, ok := c.genTypeProps[typeSpec]; ok {
+		return result
+	} else {
+		builder := &strings.Builder{}
+		switch typ := typeSpec.Type.(type) {
+		case *ast.StructType:
+			if typeSpec.TypeParams != nil {
+				builder.WriteString("template<")
+				for i, typeParam := range typeSpec.TypeParams.List {
+					for j, name := range typeParam.Names {
+						if i > 0 || j > 0 {
+							builder.WriteString(", ")
+						}
+						builder.WriteString("typename ")
+						builder.WriteString(name.String())
+					}
+				}
+				builder.WriteString(">\n")
+			}
+			builder.WriteString("void forEachProp(")
+			builder.WriteString(typeSpec.Name.String())
+			if typeSpec.TypeParams != nil {
+				builder.WriteString("<")
+				for i, typeParam := range typeSpec.TypeParams.List {
+					for j, name := range typeParam.Names {
+						if i > 0 || j > 0 {
+							builder.WriteString(", ")
+						}
+						builder.WriteString(name.String())
+					}
+				}
+				builder.WriteString(">")
+			}
+			builder.WriteString(" &val, auto &&func) {\n")
+			for _, field := range typ.Fields.List {
+				if typ := c.types.TypeOf(field.Type); typ != nil {
+					for _, fieldName := range field.Names {
+						if ast.IsExported(fieldName.String()) {
+							builder.WriteString("  {\n")
+							builder.WriteString("    static constexpr GX_PROP_ATTRIBS attrs { .name = \"")
+							builder.WriteString(fieldName.String())
+							builder.WriteString("\" };\n")
+							builder.WriteString("    func(gx::PropTag<&attrs>(), val.")
+							builder.WriteString(fieldName.String())
+							builder.WriteString(");\n  }\n")
+						}
+					}
+				}
+			}
+			builder.WriteString("}")
+		case *ast.InterfaceType:
+			// Empty -- only used as generic constraint during typecheck
+		default:
+			// Empty -- alias declaration is definition
+		}
+		result = builder.String()
+		c.genTypeProps[typeSpec] = result
 		return result
 	}
 }
@@ -776,6 +837,7 @@ func (c *Compiler) compile() {
 	c.genTypeExprs = make(map[types.Type]string)
 	c.genTypeDecls = make(map[*ast.TypeSpec]string)
 	c.genTypeDefns = make(map[*ast.TypeSpec]string)
+	c.genTypeProps = make(map[*ast.TypeSpec]string)
 	c.genFuncDecls = make(map[*ast.FuncDecl]string)
 
 	// Initialize builders
@@ -1051,6 +1113,19 @@ func (c *Compiler) compile() {
 			}
 		}
 
+		// Props
+		c.write("\n\n")
+		c.write("//\n// Props\n//\n")
+		for _, typeSpec := range typeSpecs {
+			if typeDecl := c.genTypeDecl(typeSpec); typeDecl != "" {
+				if prop := c.genTypeProp(typeSpec); prop != "" {
+					c.write("\n")
+					c.write(prop)
+					c.write("\n")
+				}
+			}
+		}
+
 		// Function declarations
 		c.write("\n\n")
 		c.write("//\n// Function declarations\n//\n\n")
@@ -1102,7 +1177,7 @@ func (c *Compiler) compile() {
 		c.outputHH.WriteString(includes)
 		c.outputHH.WriteString(preamble)
 
-		// Exported types
+		// Types
 		c.outputHH.WriteString("\n\n")
 		c.outputHH.WriteString("//\n// Types\n//\n\n")
 		for _, typeSpec := range typeSpecs {
@@ -1128,7 +1203,22 @@ func (c *Compiler) compile() {
 			}
 		}
 
-		// Exported function declarations
+		// Props
+		c.outputHH.WriteString("\n\n")
+		c.outputHH.WriteString("//\n// Props\n//\n\n")
+		for _, typeSpec := range typeSpecs {
+			if exportedTypeSpecs[typeSpec] {
+				if typeDecl := c.genTypeDecl(typeSpec); typeDecl != "" {
+					if prop := c.genTypeProp(typeSpec); prop != "" {
+						c.outputHH.WriteString("\n")
+						c.outputHH.WriteString(prop)
+						c.outputHH.WriteString("\n")
+					}
+				}
+			}
+		}
+
+		// Function declarations
 		c.outputHH.WriteString("\n\n")
 		c.outputHH.WriteString("//\n// Function declarations\n//\n\n")
 		for _, funcDecl := range funcDecls {
