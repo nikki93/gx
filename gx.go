@@ -1288,13 +1288,14 @@ func main() {
 			}
 		}
 		writeFileIfChanged := func(path string, contents string) {
+			byteContents := []byte(contents)
 			if f, err := os.Open(path); err == nil {
 				defer f.Close()
-				if readersEqual(f, strings.NewReader(contents)) {
+				if readersEqual(f, bytes.NewReader(byteContents)) {
 					return
 				}
 			}
-			ioutil.WriteFile(path, []byte(contents), 0644)
+			ioutil.WriteFile(path, byteContents, 0644)
 		}
 		writeFileIfChanged(outputPrefix+".gx.cc", c.outputCC.String())
 		writeFileIfChanged(outputPrefix+".gx.hh", c.outputHH.String())
