@@ -403,6 +403,16 @@ func testSlices() {
 		check(s[2] == 42)
 	}
 	{
+		s := [][]int{{1}, {}, {3, 4}}
+		check(len(s) == 3)
+		check(len(s[0]) == 1)
+		check(s[0][0] == 1)
+		check(len(s[1]) == 0)
+		check(len(s[2]) == 2)
+		check(s[2][0] == 3)
+		check(s[2][1] == 4)
+	}
+	{
 		stuff := []int{1, 2}
 		stuff = append(stuff, 3)
 		check(len(stuff) == 3)
