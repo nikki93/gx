@@ -121,10 +121,8 @@ struct FieldAttribs {
 using FieldAttribs = GX_FIELD_ATTRIBS;
 #endif
 
-template<auto *attribs_>
-struct FieldTag {
-  inline static constexpr auto attribs = *attribs_;
-};
+template<typename T, int N>
+struct FieldTag {};
 
 
 }

@@ -238,45 +238,79 @@ func (c *Compiler) genTypeMeta(typeSpec *ast.TypeSpec) string {
 		builder := &strings.Builder{}
 		switch typ := typeSpec.Type.(type) {
 		case *ast.StructType:
+			typeParamsBuilder := &strings.Builder{}
 			if typeSpec.TypeParams != nil {
-				builder.WriteString("template<")
 				for i, typeParam := range typeSpec.TypeParams.List {
 					for j, name := range typeParam.Names {
 						if i > 0 || j > 0 {
-							builder.WriteString(", ")
+							typeParamsBuilder.WriteString(", ")
 						}
-						builder.WriteString("typename ")
-						builder.WriteString(name.String())
+						typeParamsBuilder.WriteString("typename ")
+						typeParamsBuilder.WriteString(name.String())
 					}
 				}
-				builder.WriteString(">\n")
 			}
-			builder.WriteString("inline void forEachField(")
-			builder.WriteString(typeSpec.Name.String())
+			typeParams := typeParamsBuilder.String()
+			typeExprBuilder := &strings.Builder{}
+			typeExprBuilder.WriteString(typeSpec.Name.String())
 			if typeSpec.TypeParams != nil {
-				builder.WriteString("<")
+				typeExprBuilder.WriteString("<")
 				for i, typeParam := range typeSpec.TypeParams.List {
 					for j, name := range typeParam.Names {
 						if i > 0 || j > 0 {
-							builder.WriteString(", ")
+							typeExprBuilder.WriteString(", ")
 						}
-						builder.WriteString(name.String())
+						typeExprBuilder.WriteString(name.String())
 					}
 				}
-				builder.WriteString(">")
+				typeExprBuilder.WriteString(">")
 			}
-			builder.WriteString(" &val, auto &&func) {\n")
+			typeExpr := typeExprBuilder.String()
+
+			// `gx::FieldTag` specializations
+			fieldIndex := 0
 			for _, field := range typ.Fields.List {
 				if typ := c.types.TypeOf(field.Type); typ != nil {
 					for _, fieldName := range field.Names {
 						if ast.IsExported(fieldName.String()) {
-							builder.WriteString("  {\n")
-							builder.WriteString("    static constexpr gx::FieldAttribs attrs { .name = \"")
+							builder.WriteString("template<")
+							builder.WriteString(typeParams)
+							builder.WriteString(">\nstruct gx::FieldTag<")
+							builder.WriteString(typeExpr)
+							builder.WriteString(", ")
+							fmt.Fprintf(builder, "%d", fieldIndex)
+							builder.WriteString("> {\n")
+							builder.WriteString("  inline static constexpr gx::FieldAttribs attribs { .name = \"")
 							builder.WriteString(lowerFirst(fieldName.String()))
-							builder.WriteString("\" };\n")
-							builder.WriteString("    func(gx::FieldTag<&attrs>(), val.")
+							builder.WriteString("\" };\n};\n")
+							fieldIndex++
+						}
+					}
+				}
+			}
+
+			// `forEachField`
+			if typeParams != "" {
+				builder.WriteString("template<")
+				builder.WriteString(typeParams)
+				builder.WriteString(">\n")
+			}
+			builder.WriteString("inline void forEachField(")
+			builder.WriteString(typeExpr)
+			builder.WriteString(" &val, auto &&func) {\n")
+			fieldIndex = 0
+			for _, field := range typ.Fields.List {
+				if typ := c.types.TypeOf(field.Type); typ != nil {
+					for _, fieldName := range field.Names {
+						if ast.IsExported(fieldName.String()) {
+							builder.WriteString("  func(gx::FieldTag<")
+							builder.WriteString(typeExpr)
+							builder.WriteString(", ")
+							fmt.Fprintf(builder, "%d", fieldIndex)
+							builder.WriteString(">(), val.")
 							builder.WriteString(fieldName.String())
-							builder.WriteString(");\n  }\n")
+							builder.WriteString(");\n")
+							fieldIndex++
 						}
 					}
 				}

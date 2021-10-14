@@ -240,19 +240,19 @@ func add[T Numeric](a, b T) T {
 }
 
 type Holder[T any] struct {
-	item T
+	Item T
 }
 
 func incrHolder[T Numeric](h *Holder[T]) {
-	h.item += 1
+	h.Item += 1
 }
 
 func (h Holder[T]) get() T {
-	return h.item
+	return h.Item
 }
 
-func (h *Holder[T]) set(item T) {
-	h.item = item
+func (h *Holder[T]) set(Item T) {
+	h.Item = Item
 }
 
 func testGenerics() {
@@ -263,26 +263,26 @@ func testGenerics() {
 	}
 	{
 		i := Holder[int]{42}
-		check(i.item == 42)
+		check(i.Item == 42)
 		incrHolder(&i)
-		check(i.item == 43)
+		check(i.Item == 43)
 
 		f := Holder[float64]{42}
-		check(f.item == 42)
-		check(add(f.item, 20) == 62)
+		check(f.Item == 42)
+		check(add(f.Item, 20) == 62)
 		incrHolder(&f)
-		check(f.item == 43)
+		check(f.Item == 43)
 
 		p := Holder[Point]{Point{1, 2}}
-		check(p.item.x == 1)
-		check(p.item.y == 2)
-		p.item.setZero()
-		check(p.item.x == 0)
-		check(p.item.y == 0)
+		check(p.Item.x == 1)
+		check(p.Item.y == 2)
+		p.Item.setZero()
+		check(p.Item.x == 0)
+		check(p.Item.y == 0)
 
 		p.set(Point{3, 2})
-		check(p.item.x == 3)
-		check(p.item.y == 2)
+		check(p.Item.x == 3)
+		check(p.Item.y == 2)
 		check(p.get().x == 3)
 		check(p.get().y == 2)
 	}
