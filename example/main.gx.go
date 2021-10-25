@@ -701,6 +701,24 @@ func testMeta() {
 }
 
 //
+// Defaults
+//
+
+type HasDefaults struct {
+	foo   int     `default:"42"`
+	bar   float32 `default:"6.4"`
+	point Point   `default:"{ 1, 2 }"`
+}
+
+func testDefaults() {
+	h := HasDefaults{}
+	check(h.foo == 42)
+	check(h.bar == 6.4)
+	check(h.point.x == 1)
+	check(h.point.y == 2)
+}
+
+//
 // Main
 //
 
@@ -723,4 +741,5 @@ func main() {
 	testExterns()
 	testConversions()
 	testMeta()
+	testDefaults()
 }

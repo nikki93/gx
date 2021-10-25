@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -210,11 +211,20 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 			builder.WriteString(" {\n")
 			for _, field := range typ.Fields.List {
 				if typ := c.types.TypeOf(field.Type); typ != nil {
+					var defaultVal string
+					if tag := field.Tag; tag != nil && tag.Kind == token.STRING {
+						unquoted, _ := strconv.Unquote(tag.Value)
+						defaultVal = reflect.StructTag(unquoted).Get("default")
+					}
 					typeExpr := c.genTypeExpr(typ, field.Type.Pos())
 					for _, fieldName := range field.Names {
 						builder.WriteString("  ")
 						builder.WriteString(typeExpr)
 						builder.WriteString(fieldName.String())
+						if defaultVal != "" {
+							builder.WriteString(" = ")
+							builder.WriteString(defaultVal)
+						}
 						builder.WriteString(";\n")
 					}
 				}
