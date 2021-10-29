@@ -9,6 +9,7 @@ CLANG="clang++"
 GO="go"
 TIME="time"
 TIME_TOTAL="time"
+EXE=""
 
 if [[ -f /proc/version ]]; then
   if grep -q Linux /proc/version; then
@@ -18,8 +19,9 @@ if [[ -f /proc/version ]]; then
   fi
   if grep -q Microsoft /proc/version; then
     PLATFORM="win"
-    CMAKE="cmake.exe"
-    CLANG_FORMAT="clang-format.exe"
+    CLANG="clang++.exe"
+    GO="go.exe"
+    EXE=".exe"
   fi
 fi
 CLANG="$TIME $CLANG"
@@ -31,8 +33,8 @@ case "$1" in
     mkdir -p build
     $GO build gx.go
     rm -rf build/example.gx.*
-    $TIME ./gx ./example build/example
-    rm gx
+    $TIME ./gx$EXE ./example build/example
+    rm gx$EXE
     if [[ -f build/example.gx.cc ]]; then
       $CLANG -std=c++20 -Wall -O3 -Iexample -o output build/example.gx.cc || true
     fi
