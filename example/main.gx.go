@@ -732,6 +732,41 @@ type HasString struct {
 
 func testStrings() {
 	{
+		s0 := ""
+		check(len(s0) == 0)
+		check(strcmp(s0, "") == 0)
+
+		s1 := "foo"
+		check(len(s1) == 3)
+		check(s1[0] == 'f')
+		check(s1[1] == 'o')
+		check(s1[2] == 'o')
+		check(strcmp(s1, "foo") == 0)
+
+		s2 := "foo"
+		check(strcmp(s1, s2) == 0)
+		check(strcmp(s1, "nope") != 0)
+		check(strcmp(s1, "foo") == 0)
+
+		s3 := s2
+		check(strcmp(s1, s3) == 0)
+
+		sum := 0
+		for i, c := range s3 {
+			sum += i
+			if i == 0 {
+				check(c == 'f')
+			}
+			if i == 1 {
+				check(c == 'o')
+			}
+			if i == 2 {
+				check(c == 'o')
+			}
+		}
+		check(sum == 3)
+	}
+	{
 		h0 := HasString{}
 		check(len(h0.s) == 0)
 		check(strcmp(h0.s, "") == 0)

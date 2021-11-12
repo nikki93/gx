@@ -724,7 +724,11 @@ func (c *Compiler) writeAssignStmt(assignStmt *ast.AssignStmt) {
 		return
 	}
 	if assignStmt.Tok == token.DEFINE {
-		c.write("auto ")
+		if typ, ok := c.types.TypeOf(assignStmt.Rhs[0]).(*types.Basic); ok && typ.Kind() == types.String {
+			c.write("gx::String ")
+		} else {
+			c.write("auto ")
+		}
 	}
 	c.writeExpr(assignStmt.Lhs[0])
 	c.write(" ")
