@@ -116,16 +116,12 @@ Slice<T> &append(Slice<T> &s, U &&val) {
 struct String {
   std::vector<char> data;
 
-  String() {
-    data.resize(1);
-    data[0] = '\0';
+  String()
+      : data({ '\0' }) {
   }
 
-  String(const char *s) {
-    auto len = std::strlen(s);
-    data.resize(len + 1);
-    std::memcpy(data.data(), s, len);
-    data[len] = '\0';
+  String(const char *s)
+      : data(s, s + std::strlen(s) + 1) {
   }
 
   operator const char *() const {
