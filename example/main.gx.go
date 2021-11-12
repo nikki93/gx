@@ -1,4 +1,4 @@
-//gx:include <stdio.h>
+//gx:include <string.h>
 //gx:include "rect.hh"
 //gx:include "sum_fields.hh"
 
@@ -720,22 +720,27 @@ func testDefaults() {
 }
 
 //
-// Byte slices <-> C strings
+// Strings
 //
 
 //gx:extern std::strcmp
-func strcmp(a, b []byte) int
+func strcmp(a, b string) int
 
-func testByteSlicesAsCStrings() {
+type HasString struct {
+	s string
+}
+
+func testStrings() {
 	{
-		a := []byte("hello, world!")
-		check(a[0] == 'h')
-		check(a[1] == 'e')
-		b := []byte("hello, world!")
-		check(strcmp(a, b) == 0)
-		a[1] = 'f'
-		check(strcmp(a, b) != 0)
-		check(strcmp(a, []byte("hfllo, world!")) == 0)
+		h0 := HasString{}
+		check(len(h0.s) == 0)
+		check(strcmp(h0.s, "") == 0)
+		h1 := HasString{"foo"}
+		check(len(h1.s) == 3)
+		check(h1.s[0] == 'f')
+		h2 := HasString{"foo"}
+		check(strcmp(h1.s, h2.s) == 0)
+		check(strcmp(h1.s, HasString{"nope"}.s) != 0)
 	}
 }
 
@@ -763,5 +768,5 @@ func main() {
 	testConversions()
 	testMeta()
 	testDefaults()
-	testByteSlicesAsCStrings()
+	testStrings()
 }

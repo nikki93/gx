@@ -84,17 +84,6 @@ struct Slice {
       : data(l) {
   }
 
-  explicit Slice(const char *s) requires(std::is_same_v<T, unsigned char>) {
-    auto len = std::strlen(s);
-    data.resize(len + 1);
-    std::memcpy(data.data(), s, len);
-    data[len] = '\0';
-  }
-
-  operator const char *() const requires(std::is_same_v<T, unsigned char>) {
-    return (const char *)data.data();
-  }
-
   T &operator[](int i) {
     return data[i];
   }
@@ -117,6 +106,47 @@ template<typename T, typename U>
 Slice<T> &append(Slice<T> &s, U &&val) {
   s.data.push_back(val);
   return s;
+}
+
+
+//
+// String
+//
+
+struct String {
+  std::vector<char> data;
+
+  String() {
+    data.resize(1);
+    data[0] = '\0';
+  }
+
+  String(const char *s) {
+    auto len = std::strlen(s);
+    data.resize(len + 1);
+    std::memcpy(data.data(), s, len);
+    data[len] = '\0';
+  }
+
+  operator const char *() const {
+    return (const char *)data.data();
+  }
+
+  char &operator[](int i) {
+    return data[i];
+  }
+
+  auto begin() {
+    return data.begin();
+  }
+
+  auto end() {
+    return data.end() - 1;
+  }
+};
+
+inline int len(const String &s) {
+  return s.data.size() - 1;
 }
 
 

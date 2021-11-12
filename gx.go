@@ -113,6 +113,8 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 				builder.WriteString("double")
 			case types.Byte:
 				builder.WriteString("unsigned char")
+			case types.String:
+				builder.WriteString("gx::String")
 			default:
 				c.errorf(pos, "%s not supported", typ.String())
 			}
