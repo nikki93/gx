@@ -1117,7 +1117,7 @@ func (c *Compiler) compile() {
 	// `#include`s
 	var includes string
 	{
-		re := regexp.MustCompile(`//gx:include "(.*)"`)
+		re := regexp.MustCompile(`//gx:include (.*)`)
 		visited := make(map[string]bool)
 		builder := &strings.Builder{}
 		for _, pkg := range pkgs {
@@ -1128,9 +1128,9 @@ func (c *Compiler) compile() {
 							include := matches[1]
 							if !visited[include] {
 								visited[include] = true
-								builder.WriteString("#include \"")
+								builder.WriteString("#include ")
 								builder.WriteString(include)
-								builder.WriteString("\"\n")
+								builder.WriteString("\n")
 							}
 						}
 					}
