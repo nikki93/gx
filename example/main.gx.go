@@ -746,6 +746,7 @@ func testStrings() {
 		h2 := HasString{"foo"}
 		check(strcmp(h1.s, h2.s) == 0)
 		check(strcmp(h1.s, HasString{"nope"}.s) != 0)
+		check(strcmp(h1.s, HasString{"foo"}.s) == 0)
 
 		h3 := h2
 		check(strcmp(h1.s, h3.s) == 0)
