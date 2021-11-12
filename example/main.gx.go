@@ -735,9 +735,14 @@ func testStrings() {
 		h0 := HasString{}
 		check(len(h0.s) == 0)
 		check(strcmp(h0.s, "") == 0)
+
 		h1 := HasString{"foo"}
 		check(len(h1.s) == 3)
 		check(h1.s[0] == 'f')
+		check(h1.s[1] == 'o')
+		check(h1.s[2] == 'o')
+		check(strcmp(h1.s, "foo") == 0)
+
 		h2 := HasString{"foo"}
 		check(strcmp(h1.s, h2.s) == 0)
 		check(strcmp(h1.s, HasString{"nope"}.s) != 0)
