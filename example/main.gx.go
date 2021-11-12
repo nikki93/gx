@@ -1,3 +1,4 @@
+//gx:include <stdio.h>
 //gx:include "rect.hh"
 //gx:include "sum_fields.hh"
 
@@ -719,6 +720,26 @@ func testDefaults() {
 }
 
 //
+// Byte slices <-> C strings
+//
+
+//gx:extern std::strcmp
+func strcmp(a, b []byte) int
+
+func testByteSlicesAsCStrings() {
+	{
+		a := []byte("hello, world!")
+		check(a[0] == 'h')
+		check(a[1] == 'e')
+		b := []byte("hello, world!")
+		check(strcmp(a, b) == 0)
+		a[1] = 'f'
+		check(strcmp(a, b) != 0)
+		check(strcmp(a, []byte("hfllo, world!")) == 0)
+	}
+}
+
+//
 // Main
 //
 
@@ -742,4 +763,5 @@ func main() {
 	testConversions()
 	testMeta()
 	testDefaults()
+	testByteSlicesAsCStrings()
 }

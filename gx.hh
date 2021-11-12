@@ -84,6 +84,21 @@ struct Slice {
       : data(l) {
   }
 
+  explicit Slice(const char *s) requires(std::is_same_v<T, unsigned char>) {
+    auto len = std::strlen(s);
+    data.resize(len + 1);
+    std::memcpy(data.data(), s, len);
+    data[len] = '\0';
+  }
+
+  operator char *() requires(std::is_same_v<T, unsigned char>) {
+    return (char *)data.data();
+  }
+
+  operator const char *() const requires(std::is_same_v<T, unsigned char>) {
+    return (char *)data.data();
+  }
+
   T &operator[](int i) {
     return data[i];
   }
