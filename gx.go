@@ -458,6 +458,8 @@ func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 		c.write("f")
 	case token.STRING:
 		c.write(lit.Value)
+	case token.CHAR:
+		c.write(lit.Value)
 	default:
 		c.errorf(lit.Pos(), "unsupported literal kind")
 	}
