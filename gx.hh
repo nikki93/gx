@@ -114,7 +114,11 @@ Slice<T> &append(Slice<T> &s, U &&val) {
 //
 
 struct String {
+#ifndef GX_STRING_VECTOR
   std::vector<char> data;
+#else
+  GX_STRING_VECTOR data;
+#endif
 
   String()
       : data({ '\0' }) {
