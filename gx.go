@@ -1031,8 +1031,8 @@ func (c *Compiler) compile() {
 
 	// Collect top-level decls and externs
 	var typeSpecs []*ast.TypeSpec
-	exportedTypeSpecs := make(map[*ast.TypeSpec]bool)
-	behaviorTypeSpecs := make(map[*ast.TypeSpec]bool)
+	exports := make(map[types.Object]bool)
+	behaviors := make(map[types.Object]bool)
 	var valueSpecs []*ast.ValueSpec
 	var funcDecls []*ast.FuncDecl
 	{
@@ -1074,12 +1074,13 @@ func (c *Compiler) compile() {
 								}
 								var visitTypeSpec func(typeSpec *ast.TypeSpec, export bool)
 								visitTypeSpec = func(typeSpec *ast.TypeSpec, export bool) {
+									obj := c.types.Defs[typeSpec.Name]
 									visited := typeSpecVisited[typeSpec]
-									if visited && !(export && !exportedTypeSpecs[typeSpec]) {
+									if visited && !(export && !exports[obj]) {
 										return
 									}
 									if export {
-										exportedTypeSpecs[typeSpec] = true
+										exports[obj] = true
 									}
 									if !visited {
 										typeSpecVisited[typeSpec] = true
@@ -1087,7 +1088,7 @@ func (c *Compiler) compile() {
 											for _, field := range structType.Fields.List {
 												if field.Names == nil {
 													if ident, ok := field.Type.(*ast.Ident); ok && ident.Name == "Behavior" {
-														behaviorTypeSpecs[typeSpec] = true
+														behaviors[obj] = true
 														export = true
 													}
 												}
@@ -1281,7 +1282,7 @@ func (c *Compiler) compile() {
 		c.outputHH.WriteString("\n\n")
 		c.outputHH.WriteString("//\n// Types\n//\n\n")
 		for _, typeSpec := range typeSpecs {
-			if exportedTypeSpecs[typeSpec] {
+			if exports[c.types.Defs[typeSpec.Name]] {
 				if typeDecl := c.genTypeDecl(typeSpec); typeDecl != "" {
 					c.outputHH.WriteString(typeDecl)
 					c.outputHH.WriteString(";\n")
@@ -1289,10 +1290,10 @@ func (c *Compiler) compile() {
 			}
 		}
 		for _, typeSpec := range typeSpecs {
-			if exportedTypeSpecs[typeSpec] {
+			if exports[c.types.Defs[typeSpec.Name]] {
 				if typeDefn := c.genTypeDefn(typeSpec); typeDefn != "" {
 					c.outputHH.WriteString("\n")
-					if behaviorTypeSpecs[typeSpec] {
+					if behaviors[c.types.Defs[typeSpec.Name]] {
 						c.outputHH.WriteString("ComponentTypeListAdd(")
 						c.outputHH.WriteString(typeSpec.Name.String())
 						c.outputHH.WriteString(");\n")
@@ -1307,7 +1308,7 @@ func (c *Compiler) compile() {
 		c.outputHH.WriteString("\n\n")
 		c.outputHH.WriteString("//\n// Meta\n//\n")
 		for _, typeSpec := range typeSpecs {
-			if exportedTypeSpecs[typeSpec] {
+			if exports[c.types.Defs[typeSpec.Name]] {
 				if typeDecl := c.genTypeDecl(typeSpec); typeDecl != "" {
 					if meta := c.genTypeMeta(typeSpec); meta != "" {
 						c.outputHH.WriteString("\n")
@@ -1329,11 +1330,9 @@ func (c *Compiler) compile() {
 						if export {
 							return false
 						}
-						if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
-							if typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec); ok && exportedTypeSpecs[typeSpec] {
-								export = true
-								return false
-							}
+						if ident, ok := node.(*ast.Ident); ok && exports[c.types.Uses[ident]] {
+							export = true
+							return false
 						}
 						return true
 					})
