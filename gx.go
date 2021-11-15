@@ -407,9 +407,9 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 				if matches := fieldTagMethodNameRe.FindStringSubmatch(name); len(matches) == 3 {
 					name = matches[1]
 					fieldName := matches[2]
-					numFields := structType.NumFields()
 					matchingTagIndex := -1
 					tagIndex := 0
+					numFields := structType.NumFields()
 					for fieldIndex := 0; fieldIndex < numFields; fieldIndex++ {
 						if field := structType.Field(fieldIndex); field.Exported() && !field.Embedded() {
 							if field.Name() == fieldName {
