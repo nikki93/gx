@@ -1036,6 +1036,27 @@ func (c *Compiler) compile() {
 	var valueSpecs []*ast.ValueSpec
 	var funcDecls []*ast.FuncDecl
 	{
+		objTypeSpecs := make(map[types.Object]*ast.TypeSpec)
+		objValueSpecs := make(map[types.Object]*ast.ValueSpec)
+		for _, pkg := range pkgs {
+			for _, file := range pkg.Syntax {
+				for _, decl := range file.Decls {
+					switch decl := decl.(type) {
+					case *ast.GenDecl:
+						for _, spec := range decl.Specs {
+							switch spec := spec.(type) {
+							case *ast.TypeSpec:
+								objTypeSpecs[c.types.Defs[spec.Name]] = spec
+							case *ast.ValueSpec:
+								for _, name := range spec.Names {
+									objValueSpecs[c.types.Defs[name]] = spec
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 		externsRe := regexp.MustCompile(`//gx:externs (.*)`)
 		externRe := regexp.MustCompile(`//gx:extern (.*)`)
 		parseDirective := func(re *regexp.Regexp, doc *ast.CommentGroup) string {
@@ -1095,9 +1116,9 @@ func (c *Compiler) compile() {
 											}
 										}
 									}
-									ast.Inspect(typeSpec, func(node ast.Node) bool {
-										if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
-											if typeSpec, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
+									ast.Inspect(typeSpec.Type, func(node ast.Node) bool {
+										if ident, ok := node.(*ast.Ident); ok {
+											if typeSpec, ok := objTypeSpecs[c.types.Uses[ident]]; ok {
 												visitTypeSpec(typeSpec, export)
 											}
 										}
@@ -1127,8 +1148,8 @@ func (c *Compiler) compile() {
 									}
 									valueSpecVisited[valueSpec] = true
 									ast.Inspect(valueSpec, func(node ast.Node) bool {
-										if ident, ok := node.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Decl != nil {
-											if valueSpec, ok := ident.Obj.Decl.(*ast.ValueSpec); ok {
+										if ident, ok := node.(*ast.Ident); ok {
+											if valueSpec, ok := objValueSpecs[c.types.Uses[ident]]; ok {
 												visitValueSpec(valueSpec)
 											}
 										}
