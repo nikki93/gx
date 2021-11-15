@@ -149,6 +149,10 @@ inline int len(const String &s) {
   return s.data.size() - 1;
 }
 
+inline bool operator==(const String &a, const String &b) {
+  return a.data == b.data;
+}
+
 
 //
 // Meta
