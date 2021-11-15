@@ -76,7 +76,11 @@ constexpr int len(const Array<T, N> &a) {
 
 template<typename T>
 struct Slice {
+#ifndef GX_SLICE_VECTOR
   std::vector<T> data;
+#else
+  GX_SLICE_VECTOR data;
+#endif
 
   Slice() = default;
 
