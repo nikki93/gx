@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -929,9 +930,6 @@ func (c *Compiler) writeStmtList(list []ast.Stmt) {
 // Top-level
 //
 
-//go:embed gx.hh
-var preamble string
-
 func (c *Compiler) compile() {
 	// Initialize maps
 	c.externs = make(map[types.Object]string)
@@ -1210,14 +1208,14 @@ func (c *Compiler) compile() {
 				}
 			}
 		}
+		builder.WriteString("#include \"gx.hh\"\n")
 		includes = builder.String()
 	}
 
 	// Output '.cc'
 	{
-		// Includes, preamble
+		// Includes
 		c.write(includes)
-		c.write(preamble)
 
 		// Types
 		c.write("\n\n")
@@ -1296,9 +1294,11 @@ func (c *Compiler) compile() {
 
 	// Output '.hh'
 	{
-		// Includes, preamble
+		// `#pragma once`
+		c.outputHH.WriteString("#pragma once\n\n")
+
+		// Includes
 		c.outputHH.WriteString(includes)
-		c.outputHH.WriteString(preamble)
 
 		// Types
 		c.outputHH.WriteString("\n\n")
@@ -1372,6 +1372,9 @@ func (c *Compiler) compile() {
 // Main
 //
 
+//go:embed gx.hh
+var gxHH string
+
 func main() {
 	// Arguments
 	if len(os.Args) != 3 {
@@ -1414,6 +1417,7 @@ func main() {
 			}
 			ioutil.WriteFile(path, byteContents, 0644)
 		}
+		writeFileIfChanged(filepath.Dir(outputPrefix)+"/gx.hh", gxHH)
 		writeFileIfChanged(outputPrefix+".gx.cc", c.outputCC.String())
 		writeFileIfChanged(outputPrefix+".gx.hh", c.outputHH.String())
 	}
