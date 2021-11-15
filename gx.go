@@ -212,13 +212,13 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 			builder.WriteString(c.genTypeDecl(typeSpec))
 			builder.WriteString(" {\n")
 			for _, field := range typ.Fields.List {
-				if typ := c.types.TypeOf(field.Type); typ != nil {
+				if fieldType := c.types.TypeOf(field.Type); fieldType != nil {
 					var defaultVal string
 					if tag := field.Tag; tag != nil && tag.Kind == token.STRING {
 						unquoted, _ := strconv.Unquote(tag.Value)
 						defaultVal = reflect.StructTag(unquoted).Get("default")
 					}
-					typeExpr := c.genTypeExpr(typ, field.Type.Pos())
+					typeExpr := c.genTypeExpr(fieldType, field.Type.Pos())
 					for _, fieldName := range field.Names {
 						builder.WriteString("  ")
 						builder.WriteString(typeExpr)
@@ -280,22 +280,22 @@ func (c *Compiler) genTypeMeta(typeSpec *ast.TypeSpec) string {
 			typeExpr := typeExprBuilder.String()
 
 			// `gx::FieldTag` specializations
-			fieldIndex := 0
+			tagIndex := 0
 			for _, field := range typ.Fields.List {
-				if typ := c.types.TypeOf(field.Type); typ != nil {
+				if field.Type != nil {
 					for _, fieldName := range field.Names {
-						if ast.IsExported(fieldName.String()) {
+						if fieldName.IsExported() {
 							builder.WriteString("template<")
 							builder.WriteString(typeParams)
 							builder.WriteString(">\nstruct gx::FieldTag<")
 							builder.WriteString(typeExpr)
 							builder.WriteString(", ")
-							fmt.Fprintf(builder, "%d", fieldIndex)
+							builder.WriteString(strconv.Itoa(tagIndex))
 							builder.WriteString("> {\n")
 							builder.WriteString("  inline static constexpr gx::FieldAttribs attribs { .name = \"")
 							builder.WriteString(lowerFirst(fieldName.String()))
 							builder.WriteString("\" };\n};\n")
-							fieldIndex++
+							tagIndex++
 						}
 					}
 				}
@@ -310,19 +310,19 @@ func (c *Compiler) genTypeMeta(typeSpec *ast.TypeSpec) string {
 			builder.WriteString("inline void forEachField(")
 			builder.WriteString(typeExpr)
 			builder.WriteString(" &val, auto &&func) {\n")
-			fieldIndex = 0
+			tagIndex = 0
 			for _, field := range typ.Fields.List {
-				if typ := c.types.TypeOf(field.Type); typ != nil {
+				if field.Type != nil {
 					for _, fieldName := range field.Names {
-						if ast.IsExported(fieldName.String()) {
+						if fieldName.IsExported() {
 							builder.WriteString("  func(gx::FieldTag<")
 							builder.WriteString(typeExpr)
 							builder.WriteString(", ")
-							fmt.Fprintf(builder, "%d", fieldIndex)
+							builder.WriteString(strconv.Itoa(tagIndex))
 							builder.WriteString(">(), val.")
 							builder.WriteString(fieldName.String())
 							builder.WriteString(");\n")
-							fieldIndex++
+							tagIndex++
 						}
 					}
 				}
@@ -342,6 +342,8 @@ func (c *Compiler) genTypeMeta(typeSpec *ast.TypeSpec) string {
 //
 // Functions
 //
+
+var fieldTagMethodNameRe = regexp.MustCompile(`^(.*)_([^_]*)$`)
 
 func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 	if result, ok := c.genFuncDecls[decl]; ok {
@@ -367,13 +369,16 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 				builder.WriteString(">\n")
 			}
 		}
+		var recvNamedType *types.Named
 		if recv != nil {
 			switch recvType := recv.Type().(type) {
 			case *types.Named:
+				recvNamedType = recvType
 				addTypeParams(recvType.TypeParams())
 			case *types.Pointer:
 				switch elemType := recvType.Elem().(type) {
 				case *types.Named:
+					recvNamedType = elemType
 					addTypeParams(elemType.TypeParams())
 				}
 			}
@@ -394,8 +399,43 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 			}
 		}
 
+		// Field tag
+		name := decl.Name.String()
+		fieldTag := ""
+		if recvNamedType != nil {
+			if structType, ok := recvNamedType.Underlying().(*types.Struct); ok {
+				if matches := fieldTagMethodNameRe.FindStringSubmatch(name); len(matches) == 3 {
+					name = matches[1]
+					fieldName := matches[2]
+					numFields := structType.NumFields()
+					matchingTagIndex := -1
+					tagIndex := 0
+					for fieldIndex := 0; fieldIndex < numFields; fieldIndex++ {
+						if field := structType.Field(fieldIndex); field.Exported() && !field.Embedded() {
+							if field.Name() == fieldName {
+								matchingTagIndex = tagIndex
+							}
+							tagIndex++
+						}
+					}
+					typeExpr := trimFinalSpace(c.genTypeExpr(recvNamedType, recv.Pos()))
+					if matchingTagIndex == -1 {
+						c.errorf(decl.Name.Pos(), "struct %s has no field named %s", typeExpr, fieldName)
+					} else {
+						fieldTagBuilder := &strings.Builder{}
+						fieldTagBuilder.WriteString("gx::FieldTag<")
+						fieldTagBuilder.WriteString(typeExpr)
+						fieldTagBuilder.WriteString(", ")
+						fieldTagBuilder.WriteString(strconv.Itoa(matchingTagIndex))
+						fieldTagBuilder.WriteString(">")
+						fieldTag = fieldTagBuilder.String()
+					}
+				}
+			}
+		}
+
 		// Name
-		builder.WriteString(decl.Name.String())
+		builder.WriteString(name)
 
 		// Parameters
 		builder.WriteByte('(')
@@ -415,6 +455,10 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 			builder.WriteString(param.Name())
 		}
 		if recv != nil {
+			if fieldTag != "" {
+				builder.WriteString(fieldTag)
+				builder.WriteString(", ")
+			}
 			addParam(recv)
 		}
 		for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
