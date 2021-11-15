@@ -1110,6 +1110,7 @@ func (c *Compiler) compile() {
 												if field.Names == nil {
 													if ident, ok := field.Type.(*ast.Ident); ok && ident.Name == "Behavior" {
 														behaviors[obj] = true
+														exports[obj] = true
 														export = true
 													}
 												}
