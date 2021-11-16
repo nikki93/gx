@@ -581,6 +581,12 @@ func isGlobalSliceEmpty() bool {
 	return len(globalSlice) == 0
 }
 
+func apply(val int, fn func(int) int) int {
+	return fn(val)
+}
+
+var globalApplied = apply(3, func(i int) int { return 2 * i })
+
 func testGlobalVariables() {
 	{
 		check(globalX == 23)
@@ -598,6 +604,9 @@ func testGlobalVariables() {
 		check(globalSlice[0] == 1)
 		check(globalSlice[1] == 2)
 		check(!isGlobalSliceEmpty())
+	}
+	{
+		check(globalApplied == 6)
 	}
 }
 

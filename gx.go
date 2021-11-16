@@ -514,7 +514,11 @@ func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 
 func (c *Compiler) writeFuncLit(lit *ast.FuncLit) {
 	sig := c.types.TypeOf(lit).(*types.Signature)
-	c.write("[&](")
+	if c.indent == 0 {
+		c.write("[](")
+	} else {
+		c.write("[&](")
+	}
 	for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
 		if i > 0 {
 			c.write(", ")
