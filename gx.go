@@ -997,7 +997,7 @@ func (c *Compiler) compile() {
 		}
 	}
 
-	// Collect type info
+	// Collect types info
 	c.types = &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
 		Instances:  make(map[*ast.Ident]types.Instance),
@@ -1031,12 +1031,84 @@ func (c *Compiler) compile() {
 		}
 	}
 
-	// Collect top-level decls and externs
+	// Collect externs
+	{
+		externsRe := regexp.MustCompile(`//gx:externs (.*)`)
+		externRe := regexp.MustCompile(`//gx:extern (.*)`)
+		parseDirective := func(re *regexp.Regexp, doc *ast.CommentGroup) string {
+			if doc != nil {
+				for _, comment := range doc.List {
+					if matches := re.FindStringSubmatch(comment.Text); len(matches) > 1 {
+						return matches[1]
+					}
+				}
+			}
+			return ""
+		}
+		for _, pkg := range pkgs {
+			for _, file := range pkg.Syntax {
+				fileExt := ""
+				if len(file.Comments) > 0 {
+					fileExt = parseDirective(externsRe, file.Comments[0])
+				}
+				for _, decl := range file.Decls {
+					switch decl := decl.(type) {
+					case *ast.GenDecl:
+						declExt := parseDirective(externRe, decl.Doc)
+						for _, spec := range decl.Specs {
+							switch spec := spec.(type) {
+							case *ast.TypeSpec:
+								extern := false
+								if specExt := parseDirective(externRe, spec.Doc); specExt != "" {
+									c.externs[c.types.Defs[spec.Name]] = specExt
+									extern = true
+								} else if declExt != "" {
+									c.externs[c.types.Defs[spec.Name]] = declExt
+									extern = true
+								} else if fileExt != "" {
+									c.externs[c.types.Defs[spec.Name]] = fileExt + spec.Name.String()
+									extern = true
+								}
+								if extern {
+									if typ, ok := spec.Type.(*ast.StructType); ok {
+										for _, field := range typ.Fields.List {
+											for _, fieldName := range field.Names {
+												c.externs[c.types.Defs[fieldName]] = lowerFirst(fieldName.String())
+											}
+										}
+									}
+								}
+							case *ast.ValueSpec:
+								specExt := parseDirective(externRe, spec.Doc)
+								for _, name := range spec.Names {
+									if specExt != "" {
+										c.externs[c.types.Defs[name]] = specExt
+									} else if declExt != "" {
+										c.externs[c.types.Defs[name]] = declExt
+									} else if fileExt != "" {
+										c.externs[c.types.Defs[name]] = fileExt + name.String()
+									}
+								}
+							}
+						}
+					case *ast.FuncDecl:
+						if declExt := parseDirective(externRe, decl.Doc); declExt != "" {
+							c.externs[c.types.Defs[decl.Name]] = declExt
+						} else if fileExt != "" {
+							c.externs[c.types.Defs[decl.Name]] = fileExt + decl.Name.String()
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Collect top-level decls and exports in output order
 	var typeSpecs []*ast.TypeSpec
-	exports := make(map[types.Object]bool)
-	behaviors := make(map[types.Object]bool)
 	var valueSpecs []*ast.ValueSpec
 	var funcDecls []*ast.FuncDecl
+	exports := make(map[types.Object]bool)
+	behaviors := make(map[types.Object]bool)
 	{
 		objTypeSpecs := make(map[types.Object]*ast.TypeSpec)
 		objValueSpecs := make(map[types.Object]*ast.ValueSpec)
@@ -1059,51 +1131,25 @@ func (c *Compiler) compile() {
 				}
 			}
 		}
-		externsRe := regexp.MustCompile(`//gx:externs (.*)`)
-		externRe := regexp.MustCompile(`//gx:extern (.*)`)
-		parseDirective := func(re *regexp.Regexp, doc *ast.CommentGroup) string {
-			if doc != nil {
-				for _, comment := range doc.List {
-					if matches := re.FindStringSubmatch(comment.Text); len(matches) > 1 {
-						return matches[1]
-					}
-				}
-			}
-			return ""
-		}
 		typeSpecVisited := make(map[*ast.TypeSpec]bool)
 		valueSpecVisited := make(map[*ast.ValueSpec]bool)
 		for _, pkg := range pkgs {
 			for _, file := range pkg.Syntax {
-				fileExt := ""
-				if len(file.Comments) > 0 {
-					fileExt = parseDirective(externsRe, file.Comments[0])
-				}
 				for _, decl := range file.Decls {
 					switch decl := decl.(type) {
 					case *ast.GenDecl:
-						declExt := parseDirective(externRe, decl.Doc)
 						for _, spec := range decl.Specs {
 							switch spec := spec.(type) {
 							case *ast.TypeSpec:
-								visitExternFields := func(typeSpec *ast.TypeSpec) {
-									if typ, ok := typeSpec.Type.(*ast.StructType); ok {
-										for _, field := range typ.Fields.List {
-											for _, fieldName := range field.Names {
-												c.externs[c.types.Defs[fieldName]] = lowerFirst(fieldName.String())
-											}
-										}
-									}
-								}
 								var visitTypeSpec func(typeSpec *ast.TypeSpec, export bool)
 								visitTypeSpec = func(typeSpec *ast.TypeSpec, export bool) {
+									if _, ok := c.externs[c.types.Defs[typeSpec.Name]]; ok {
+										return
+									}
 									obj := c.types.Defs[typeSpec.Name]
 									visited := typeSpecVisited[typeSpec]
 									if visited && !(export && !exports[obj]) {
 										return
-									}
-									if export {
-										exports[obj] = true
 									}
 									if !visited {
 										typeSpecVisited[typeSpec] = true
@@ -1112,12 +1158,14 @@ func (c *Compiler) compile() {
 												if field.Names == nil {
 													if ident, ok := field.Type.(*ast.Ident); ok && ident.Name == "Behavior" {
 														behaviors[obj] = true
-														exports[obj] = true
 														export = true
 													}
 												}
 											}
 										}
+									}
+									if export {
+										exports[obj] = true
 									}
 									ast.Inspect(typeSpec.Type, func(node ast.Node) bool {
 										if ident, ok := node.(*ast.Ident); ok {
@@ -1128,18 +1176,7 @@ func (c *Compiler) compile() {
 										return true
 									})
 									if !visited {
-										if specExt := parseDirective(externRe, typeSpec.Doc); specExt != "" {
-											c.externs[c.types.Defs[typeSpec.Name]] = specExt
-											visitExternFields(typeSpec)
-										} else if declExt != "" {
-											c.externs[c.types.Defs[typeSpec.Name]] = declExt
-											visitExternFields(typeSpec)
-										} else if fileExt != "" {
-											c.externs[c.types.Defs[typeSpec.Name]] = fileExt + typeSpec.Name.String()
-											visitExternFields(typeSpec)
-										} else {
-											typeSpecs = append(typeSpecs, typeSpec)
-										}
+										typeSpecs = append(typeSpecs, typeSpec)
 									}
 								}
 								visitTypeSpec(spec, false)
@@ -1158,17 +1195,13 @@ func (c *Compiler) compile() {
 										}
 										return true
 									})
-									specExt := parseDirective(externRe, spec.Doc)
+									extern := false
 									for _, name := range spec.Names {
-										if specExt != "" {
-											c.externs[c.types.Defs[name]] = specExt
-										} else if declExt != "" {
-											c.externs[c.types.Defs[name]] = declExt
-										} else if fileExt != "" {
-											c.externs[c.types.Defs[name]] = fileExt + name.String()
+										if _, ok := c.externs[c.types.Defs[name]]; ok {
+											extern = true
 										}
 									}
-									if specExt == "" && declExt == "" && fileExt == "" {
+									if !extern {
 										valueSpecs = append(valueSpecs, valueSpec)
 									}
 								}
@@ -1176,11 +1209,7 @@ func (c *Compiler) compile() {
 							}
 						}
 					case *ast.FuncDecl:
-						if declExt := parseDirective(externRe, decl.Doc); declExt != "" {
-							c.externs[c.types.Defs[decl.Name]] = declExt
-						} else if fileExt != "" {
-							c.externs[c.types.Defs[decl.Name]] = fileExt + decl.Name.String()
-						} else {
+						if _, ok := c.externs[c.types.Defs[decl.Name]]; !ok {
 							funcDecls = append(funcDecls, decl)
 						}
 					}
