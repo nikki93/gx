@@ -1262,6 +1262,11 @@ func (c *Compiler) compile() {
 		for _, typeSpec := range typeSpecs {
 			if typeDefn := c.genTypeDefn(typeSpec); typeDefn != "" {
 				c.write("\n")
+				if behaviors[c.types.Defs[typeSpec.Name]] {
+					c.write("ComponentTypeListAdd(")
+					c.write(typeSpec.Name.String())
+					c.write(");\n")
+				}
 				c.write(typeDefn)
 				c.write(";\n")
 			}
