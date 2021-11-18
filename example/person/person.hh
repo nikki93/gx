@@ -6,6 +6,7 @@ namespace person {
 struct Person {
   int age;
   float health;
+  int cppValue = 42;
 };
 
 inline int Population = 0;

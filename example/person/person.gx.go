@@ -4,8 +4,9 @@
 package person
 
 type Person struct {
-	age    int
-	health float32
+	age     int
+	health  float32
+	GXValue int //gx:extern cppValue
 }
 
 var Population int

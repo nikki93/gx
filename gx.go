@@ -1072,8 +1072,16 @@ func (c *Compiler) compile() {
 								if extern {
 									if typ, ok := spec.Type.(*ast.StructType); ok {
 										for _, field := range typ.Fields.List {
+											fieldExt := parseDirective(externRe, field.Comment)
+											if fieldExt == "" {
+												fieldExt = parseDirective(externRe, field.Doc)
+											}
 											for _, fieldName := range field.Names {
-												c.externs[c.types.Defs[fieldName]] = lowerFirst(fieldName.String())
+												if fieldExt != "" {
+													c.externs[c.types.Defs[fieldName]] = fieldExt
+												} else if unicode.IsUpper(rune(fieldName.String()[0])) {
+													c.externs[c.types.Defs[fieldName]] = lowerFirst(fieldName.String())
+												}
 											}
 										}
 									}

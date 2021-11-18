@@ -668,6 +668,7 @@ func testExterns() {
 		check(p.Health() == 100)
 		p.Grow()
 		check(p.Age() == 21)
+		check(p.GXValue == 42)
 	}
 }
 
