@@ -767,6 +767,13 @@ func (c *Compiler) writeExprStmt(exprStmt *ast.ExprStmt) {
 	c.writeExpr(exprStmt.X)
 }
 
+func (c *Compiler) writeIncDecStmt(incDecStmt *ast.IncDecStmt) {
+	c.write("(")
+	c.writeExpr(incDecStmt.X)
+	c.write(")")
+	c.write(incDecStmt.Tok.String())
+}
+
 func (c *Compiler) writeAssignStmt(assignStmt *ast.AssignStmt) {
 	if len(assignStmt.Lhs) != 1 {
 		c.errorf(assignStmt.Pos(), "multi-value assignment unsupported")
@@ -901,6 +908,8 @@ func (c *Compiler) writeStmt(stmt ast.Stmt) {
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
 		c.writeExprStmt(stmt)
+	case *ast.IncDecStmt:
+		c.writeIncDecStmt(stmt)
 	case *ast.AssignStmt:
 		c.writeAssignStmt(stmt)
 	case *ast.ReturnStmt:

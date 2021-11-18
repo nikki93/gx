@@ -45,6 +45,14 @@ func testVariables() {
 	check(x == 5)
 }
 
+func testIncDec() {
+	x := 0
+	x++
+	check(x == 1)
+	x--
+	check(x == 0)
+}
+
 func testIf() {
 	x := 0
 	if cond := false; cond {
@@ -56,7 +64,7 @@ func testIf() {
 func testFor() {
 	{
 		sum := 0
-		for i := 0; i < 5; i += 1 {
+		for i := 0; i < 5; i++ {
 			sum += i
 		}
 		check(sum == 10)
@@ -66,7 +74,7 @@ func testFor() {
 		i := 0
 		for i < 5 {
 			sum += i
-			i += 1
+			i++
 		}
 		check(sum == 10)
 	}
@@ -78,7 +86,7 @@ func testFor() {
 				break
 			}
 			sum += i
-			i += 1
+			i++
 		}
 		check(sum == 10)
 	}
@@ -294,7 +302,7 @@ func testGenerics() {
 //
 
 func iterateOneToTen(f func(int)) {
-	for i := 1; i <= 10; i += 1 {
+	for i := 1; i <= 10; i++ {
 		f(i)
 	}
 }
@@ -340,7 +348,7 @@ func testArrays() {
 		arr := [4]int{1, 2, 3, 4}
 		check(arr[2] == 3)
 		sum := 0
-		for i := 0; i < len(arr); i += 1 {
+		for i := 0; i < len(arr); i++ {
 			sum += arr[i]
 		}
 		check(sum == 10)
