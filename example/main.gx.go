@@ -538,6 +538,10 @@ func testSeqs() {
 		check(s[2].y == 6)
 	}
 	{
+		s := Seq[Point]{{x: 1, y: 2}, {x: 3, y: 4}}
+		check(s.len() == 2)
+	}
+	{
 		s := Seq[Seq[int]]{{1}, {}, {3, 4}}
 		check(s.len() == 3)
 		check(len(s[0]) == 1)

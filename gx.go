@@ -537,7 +537,7 @@ func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
 	c.write("{")
 	if len(lit.Elts) > 0 {
 		if _, ok := lit.Elts[0].(*ast.KeyValueExpr); ok {
-			if typ, ok := c.types.TypeOf(lit.Type).Underlying().(*types.Struct); ok {
+			if typ, ok := c.types.TypeOf(lit).Underlying().(*types.Struct); ok {
 				c.computeFieldIndices(typ)
 				lastIndex := 0
 				for _, elt := range lit.Elts {
