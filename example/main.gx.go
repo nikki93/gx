@@ -713,14 +713,15 @@ func testConversions() {
 
 type Nums struct {
 	A, B, C int
+	D       int `attribs:"twice"`
 }
 
 //gx:extern sumFields
 func sumFields(val interface{}) int
 
 func testMeta() {
-	n := Nums{1, 2, 3}
-	check(sumFields(n) == 6)
+	n := Nums{1, 2, 3, 4}
+	check(sumFields(n) == 14)
 }
 
 //

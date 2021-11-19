@@ -295,7 +295,18 @@ func (c *Compiler) genTypeMeta(typeSpec *ast.TypeSpec) string {
 							builder.WriteString("> {\n")
 							builder.WriteString("  inline static constexpr gx::FieldAttribs attribs { .name = \"")
 							builder.WriteString(lowerFirst(fieldName.String()))
-							builder.WriteString("\" };\n};\n")
+							builder.WriteByte('"')
+							if tag := field.Tag; tag != nil && tag.Kind == token.STRING {
+								unquoted, _ := strconv.Unquote(tag.Value)
+								if attribs := reflect.StructTag(unquoted).Get("attribs"); attribs != "" {
+									for _, key := range strings.Split(attribs, ",") {
+										builder.WriteString(", .")
+										builder.WriteString(strings.TrimSpace(key))
+										builder.WriteString(" = true")
+									}
+								}
+							}
+							builder.WriteString(" };\n};\n")
 							tagIndex++
 						}
 					}
