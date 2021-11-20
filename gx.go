@@ -618,7 +618,8 @@ func (c *Compiler) writeIndexExpr(ind *ast.IndexExpr) {
 func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 	method := false
 	funType := c.types.Types[call.Fun]
-	if _, ok := funType.Type.(*types.Signature); ok || funType.IsBuiltin() { // Function or method
+	if _, ok := funType.Type.Underlying().(*types.Signature); ok || funType.IsBuiltin() {
+		// Function or method
 		if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
 			if sig, ok := c.types.Uses[sel.Sel].Type().(*types.Signature); ok && sig.Recv() != nil {
 				method = true
@@ -672,7 +673,8 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 			}
 			c.write("(")
 		}
-	} else { // Conversion
+	} else {
+		// Conversion
 		typeExpr := trimFinalSpace(c.genTypeExpr(funType.Type, call.Fun.Pos()))
 		if _, ok := call.Fun.(*ast.ParenExpr); ok {
 			c.write("(")

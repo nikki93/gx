@@ -28,4 +28,10 @@ inline void Grow(Person *p) {
   p->age++;
 }
 
+inline auto GetAgeAdder(Person *p) {
+  return [age=p->age](int i) {
+    return age + i;
+  };
+}
+
 }
