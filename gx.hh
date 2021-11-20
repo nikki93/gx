@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <vector>
+#include <cstring>
 
 
 namespace gx {
