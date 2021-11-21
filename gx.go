@@ -26,13 +26,15 @@ type Compiler struct {
 	fileSet *token.FileSet
 	types   *types.Info
 
-	externs      map[types.Object]string
-	fieldIndices map[*types.Var]int
-	genTypeExprs map[types.Type]string
-	genTypeDecls map[*ast.TypeSpec]string
-	genTypeDefns map[*ast.TypeSpec]string
-	genTypeMetas map[*ast.TypeSpec]string
-	genFuncDecls map[*ast.FuncDecl]string
+	externs         map[types.Object]string
+	fieldIndices    map[*types.Var]int
+	methodRenames   map[types.Object]string
+	methodFieldTags map[types.Object]string
+	genTypeExprs    map[types.Type]string
+	genTypeDecls    map[*ast.TypeSpec]string
+	genTypeDefns    map[*ast.TypeSpec]string
+	genTypeMetas    map[*ast.TypeSpec]string
+	genFuncDecls    map[*ast.FuncDecl]string
 
 	indent     int
 	errors     *strings.Builder
@@ -355,7 +357,7 @@ func (c *Compiler) genTypeMeta(typeSpec *ast.TypeSpec) string {
 // Functions
 //
 
-var fieldTagMethodNameRe = regexp.MustCompile(`^(.*)_([^_]*)$`)
+var methodFieldTagRe = regexp.MustCompile(`^(.*)_([^_]*)$`)
 
 func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 	if result, ok := c.genFuncDecls[decl]; ok {
@@ -416,7 +418,7 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 		fieldTag := ""
 		if recvNamedType != nil {
 			if structType, ok := recvNamedType.Underlying().(*types.Struct); ok {
-				if matches := fieldTagMethodNameRe.FindStringSubmatch(name); len(matches) == 3 {
+				if matches := methodFieldTagRe.FindStringSubmatch(name); len(matches) == 3 {
 					name = matches[1]
 					fieldName := matches[2]
 					matchingTagIndex := -1
@@ -441,6 +443,8 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 						fieldTagBuilder.WriteString(strconv.Itoa(matchingTagIndex))
 						fieldTagBuilder.WriteString(">")
 						fieldTag = fieldTagBuilder.String()
+						c.methodRenames[obj] = name
+						c.methodFieldTags[obj] = fieldTag
 					}
 				}
 			}
@@ -621,10 +625,19 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 	if _, ok := funType.Type.Underlying().(*types.Signature); ok || funType.IsBuiltin() {
 		// Function or method
 		if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-			if sig, ok := c.types.Uses[sel.Sel].Type().(*types.Signature); ok && sig.Recv() != nil {
+			obj := c.types.Uses[sel.Sel]
+			if sig, ok := obj.Type().(*types.Signature); ok && sig.Recv() != nil {
 				method = true
-				c.writeIdent(sel.Sel)
+				if rename, ok := c.methodRenames[obj]; ok {
+					c.write(rename)
+				} else {
+					c.writeIdent(sel.Sel)
+				}
 				c.write("(")
+				if fieldTag, ok := c.methodFieldTags[obj]; ok {
+					c.write(fieldTag)
+					c.write("{}, ")
+				}
 				_, xPtr := c.types.TypeOf(sel.X).(*types.Pointer)
 				_, recvPtr := sig.Recv().Type().(*types.Pointer)
 				if xPtr && !recvPtr {
@@ -960,6 +973,8 @@ func (c *Compiler) compile() {
 	// Initialize maps
 	c.externs = make(map[types.Object]string)
 	c.fieldIndices = make(map[*types.Var]int)
+	c.methodRenames = make(map[types.Object]string)
+	c.methodFieldTags = make(map[types.Object]string)
 	c.genTypeExprs = make(map[types.Type]string)
 	c.genTypeDecls = make(map[*ast.TypeSpec]string)
 	c.genTypeDefns = make(map[*ast.TypeSpec]string)
