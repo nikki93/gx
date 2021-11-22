@@ -159,6 +159,10 @@ inline bool operator==(const String &a, const String &b) {
   return a.data == b.data;
 }
 
+inline bool operator==(const String &a, const char *b) {
+  return !std::strcmp(a, b);
+}
+
 
 //
 // Meta
