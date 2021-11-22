@@ -35,13 +35,20 @@ template<typename A, typename B, typename... Args>
 void print(A &a, B &&b, Args &&...args) {
   print(a);
   print(b);
-  (print(args), ...);
+  (print(std::forward<Args>(args)), ...);
 }
 
 template<typename... Args>
 void println(Args &&...args) {
-  print(args...);
+  print(std::forward<Args>(args)...);
   print("\n");
+}
+
+template<typename... Args>
+void fatal(Args &&...args) {
+  println(std::forward<Args>(args)...);
+  std::fflush(stdout);
+  std::abort();
 }
 
 
@@ -54,6 +61,11 @@ struct Array {
   T data[N] {};
 
   T &operator[](int i) {
+#ifndef GX_NO_CHECKS
+    if (!(0 <= i && i < int(data.size()))) {
+      fatal("gx: array index out of bounds");
+    }
+#endif
     return data[i];
   }
 
@@ -91,6 +103,11 @@ struct Slice {
   }
 
   T &operator[](int i) {
+#ifndef GX_NO_CHECKS
+    if (!(0 <= i && i < int(data.size()))) {
+      fatal("gx: slice index out of bounds");
+    }
+#endif
     return data[i];
   }
 
@@ -139,6 +156,11 @@ struct String {
   }
 
   char &operator[](int i) {
+#ifndef GX_NO_CHECKS
+    if (!(0 <= i && i < int(data.size()))) {
+      fatal("gx: string index out of bounds");
+    }
+#endif
     return data[i];
   }
 
