@@ -1,7 +1,5 @@
 #!/bin/bash
 
-export PROJECT_NAME="macro-guard"
-
 set -e
 
 PLATFORM="macOS"
