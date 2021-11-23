@@ -82,7 +82,7 @@ struct Array {
 
   T &operator[](int i) {
 #ifndef GX_NO_CHECKS
-    if (!(0 <= i && i < int(data.size()))) {
+    if (!(0 <= i && i < N)) {
       fatal("gx: array index out of bounds");
     }
 #endif
