@@ -596,21 +596,23 @@ func (c *Compiler) writeParenExpr(bin *ast.ParenExpr) {
 
 func (c *Compiler) writeSelectorExpr(sel *ast.SelectorExpr) {
 	if basic, ok := c.types.TypeOf(sel.X).(*types.Basic); !(ok && basic.Kind() == types.Invalid) {
-		c.writeExpr(sel.X)
 		if _, ok := c.types.TypeOf(sel.X).(*types.Pointer); ok {
-			c.write("->")
+			c.write("gx::deref(")
+			c.writeExpr(sel.X)
+			c.write(")")
 		} else {
-			c.write(".")
+			c.writeExpr(sel.X)
 		}
+		c.write(".")
 	}
 	c.writeIdent(sel.Sel)
 }
 
 func (c *Compiler) writeIndexExpr(ind *ast.IndexExpr) {
 	if _, ok := c.types.TypeOf(ind.X).(*types.Pointer); ok {
-		c.write("(*(")
+		c.write("gx::deref(")
 		c.writeExpr(ind.X)
-		c.write("))")
+		c.write(")")
 	} else {
 		c.writeExpr(ind.X)
 	}
@@ -641,7 +643,7 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 				_, xPtr := c.types.TypeOf(sel.X).(*types.Pointer)
 				_, recvPtr := sig.Recv().Type().(*types.Pointer)
 				if xPtr && !recvPtr {
-					c.write("*(")
+					c.write("gx::deref(")
 					c.writeExpr(sel.X)
 					c.write(")")
 				} else if !xPtr && recvPtr {

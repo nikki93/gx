@@ -53,6 +53,26 @@ void fatal(Args &&...args) {
 
 
 //
+// Pointer
+//
+
+template<typename T>
+T &deref(T *ptr) {
+#ifndef GX_NO_CHECKS
+  if (!ptr) {
+    fatal("gx: nil pointer dereference");
+  }
+#endif
+  return *ptr;
+}
+
+template<typename T>
+const T &deref(const T *ptr) {
+  return deref(const_cast<T *>(ptr));
+}
+
+
+//
 // Array
 //
 
