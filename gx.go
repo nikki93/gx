@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -1035,6 +1036,9 @@ func (c *Compiler) compile() {
 			visit(pkg)
 		}
 	}
+	sort.Slice(pkgs, func(i, j int) bool {
+		return pkgs[i].ID < pkgs[j].ID
+	})
 
 	// Collect types info
 	c.types = &types.Info{
