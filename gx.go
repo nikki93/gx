@@ -796,6 +796,37 @@ func (c *Compiler) writeExprStmt(exprStmt *ast.ExprStmt) {
 	c.writeExpr(exprStmt.X)
 }
 
+func (c *Compiler) writeDeclStmt(declStmt *ast.DeclStmt) {
+	switch decl := declStmt.Decl.(type) {
+	case *ast.GenDecl:
+		switch decl.Tok {
+		case token.CONST:
+			for i, spec := range decl.Specs {
+				if valueSpec, ok := spec.(*ast.ValueSpec); ok {
+					for j, name := range valueSpec.Names {
+						if i > 0 || j > 0 {
+							c.write(";\n")
+						}
+						c.write("constexpr ")
+						if valueSpec.Type != nil {
+							c.write(c.genTypeExpr(c.types.TypeOf(valueSpec.Type), valueSpec.Type.Pos()))
+						} else {
+							c.write("auto ")
+						}
+						c.writeIdent(name)
+						if len(valueSpec.Values) > 0 {
+							c.write(" = ")
+							c.writeExpr(valueSpec.Values[j])
+						}
+					}
+				}
+			}
+			return
+		}
+	}
+	c.errorf(declStmt.Pos(), "unsupported declaration statement")
+}
+
 func (c *Compiler) writeIncDecStmt(incDecStmt *ast.IncDecStmt) {
 	c.write("(")
 	c.writeExpr(incDecStmt.X)
@@ -935,6 +966,8 @@ func (c *Compiler) writeRangeStmt(rangeStmt *ast.RangeStmt) {
 
 func (c *Compiler) writeStmt(stmt ast.Stmt) {
 	switch stmt := stmt.(type) {
+	case *ast.DeclStmt:
+		c.writeDeclStmt(stmt)
 	case *ast.ExprStmt:
 		c.writeExprStmt(stmt)
 	case *ast.IncDecStmt:
