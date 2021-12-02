@@ -114,7 +114,7 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 			case types.Float32:
 				builder.WriteString("float")
 			case types.Float64:
-				builder.WriteString("double")
+				builder.WriteString("float")
 			case types.Byte:
 				builder.WriteString("unsigned char")
 			case types.String:
