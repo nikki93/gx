@@ -45,17 +45,6 @@ func testVariables() {
 	check(x == 5)
 }
 
-func testConstants() {
-	const (
-		cInt   = 7
-		cFloat = 7.5
-	)
-	check(cInt+3 == 10)
-	check(cInt+3.5 == 10.5)
-	check(cFloat+3 == 10.5)
-	check(cFloat+3.5 == 11)
-}
-
 func testIncDec() {
 	x := 0
 	x++
