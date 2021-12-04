@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <vector>
 #include <cstring>
+#include <cstdlib>
 
 
 namespace gx {
