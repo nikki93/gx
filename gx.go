@@ -86,19 +86,6 @@ func lowerFirst(s string) string {
 // Types
 //
 
-func (c *Compiler) computeFieldIndices(typ *types.Struct) {
-	nFields := typ.NumFields()
-	if nFields == 0 {
-		return
-	}
-	if _, ok := c.fieldIndices[typ.Field(0)]; ok {
-		return
-	}
-	for i := 0; i < nFields; i++ {
-		c.fieldIndices[typ.Field(i)] = i
-	}
-}
-
 func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 	if result, ok := c.genTypeExprs[typ]; ok {
 		return result
@@ -554,7 +541,13 @@ func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
 	if len(lit.Elts) > 0 {
 		if _, ok := lit.Elts[0].(*ast.KeyValueExpr); ok {
 			if typ, ok := c.types.TypeOf(lit).Underlying().(*types.Struct); ok {
-				c.computeFieldIndices(typ)
+				if nFields := typ.NumFields(); nFields != 0 {
+					if _, ok := c.fieldIndices[typ.Field(0)]; !ok {
+						for i := 0; i < nFields; i++ {
+							c.fieldIndices[typ.Field(i)] = i
+						}
+					}
+				}
 				lastIndex := 0
 				for _, elt := range lit.Elts {
 					field := c.types.ObjectOf(elt.(*ast.KeyValueExpr).Key.(*ast.Ident)).(*types.Var)
