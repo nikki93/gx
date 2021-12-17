@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cstdio>
-#include <vector>
 #include <cstring>
+#include <vector>
 
 
 namespace gx {
