@@ -820,6 +820,7 @@ func main() {
 	testFib()
 	testUnary()
 	testVariables()
+	testIncDec()
 	testIf()
 	testFor()
 	testPointer()
