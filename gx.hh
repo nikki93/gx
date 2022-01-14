@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
-#include <vector>
+#include <new>
+#include <utility>
 
 
 namespace gx {
