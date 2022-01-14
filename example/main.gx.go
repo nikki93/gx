@@ -771,6 +771,10 @@ func testStrings() {
 		check(strcmp(s1, s2) == 0)
 		check(strcmp(s1, "nope") != 0)
 		check(strcmp(s1, "foo") == 0)
+		check(s1 == s2)
+		check(s1 != "nope")
+		check(s1 == "foo")
+		check(s1 != "fao")
 
 		s3 := s2
 		check(strcmp(s1, s3) == 0)
