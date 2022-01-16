@@ -127,7 +127,7 @@ struct Slice {
 
   Slice &operator=(const Slice &other) {
     if (this != &other) {
-      destructElements();
+      destruct();
       copyFrom(other.data, other.size);
     }
     return *this;
@@ -135,25 +135,14 @@ struct Slice {
 
   Slice(Slice &&other) {
     if (this != &other) {
-      data = other.data;
-      size = other.size;
-      capacity = other.capacity;
-      other.data = nullptr;
-      other.size = 0;
-      other.capacity = 0;
+      moveFrom(other);
     }
   }
 
   Slice &operator=(Slice &&other) {
     if (this != &other) {
-      destructElements();
-      std::free(data);
-      data = other.data;
-      size = other.size;
-      capacity = other.capacity;
-      other.data = nullptr;
-      other.size = 0;
-      other.capacity = 0;
+      destruct();
+      moveFrom(other);
     }
     return *this;
   }
@@ -163,23 +152,32 @@ struct Slice {
   }
 
   ~Slice() {
-    destructElements();
-    std::free(data);
+    destruct();
   }
 
   void copyFrom(const T *data_, int size_) {
-    data = (T *)std::realloc(data, sizeof(T) * size_);
+    data = (T *)std::malloc(sizeof(T) * size_);
     size = size_;
     capacity = size_;
-    for (auto i = 0; i < size; ++i) {
-      new (&data[i]) T(data_[i]);
+    for (auto i = 0; auto &elem : *this) {
+      new (&elem) T(data_[i++]);
     }
   }
 
-  void destructElements() {
-    for (auto i = 0; i < size; ++i) {
-      data[i].~T();
+  void moveFrom(Slice &other) {
+    data = other.data;
+    size = other.size;
+    capacity = other.capacity;
+    other.data = nullptr;
+    other.size = 0;
+    other.capacity = 0;
+  }
+
+  void destruct() {
+    for (auto &elem : *this) {
+      elem.~T();
     }
+    std::free(data);
   }
 
   T &operator[](int i) {
