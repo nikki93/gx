@@ -252,8 +252,9 @@ void remove(Slice<T> &s, int i) {
     fatal("gx: slice index out of bounds");
   }
 #endif
+  auto moveCount = s.size - (i + 1);
   s.data[i].~T();
-  std::memmove(&s.data[i], &s.data[i + 1], sizeof(T) * (s.size - 1 - i));
+  std::memmove(&s.data[i], &s.data[i + 1], sizeof(T) * moveCount);
   --s.size;
 }
 
