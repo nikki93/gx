@@ -260,7 +260,7 @@ void remove(Slice<T> &s, int i) {
 
 template<typename T>
 void Slice<T>::push_back(T val) {
-  append(*this, val);
+  append(*this, std::move(val));
 }
 
 
