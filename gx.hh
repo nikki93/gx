@@ -208,13 +208,6 @@ struct Slice {
   const T *end() const {
     return &data[size];
   }
-
-  void push_back(T val);
-
-  T &emplace_back() {
-    push_back(T {});
-    return data[size - 1];
-  }
 };
 
 template<typename T>
@@ -246,6 +239,12 @@ Slice<T> &append(Slice<T> &s, T val) {
 }
 
 template<typename T>
+T &append(Slice<T> &s) {
+  insert(s, s.size, T {});
+  return s[len(s) - 1];
+}
+
+template<typename T>
 void remove(Slice<T> &s, int i) {
 #ifndef GX_NO_CHECKS
   if (!(0 <= i && i < s.size)) {
@@ -256,11 +255,6 @@ void remove(Slice<T> &s, int i) {
   s.data[i].~T();
   std::memmove(&s.data[i], &s.data[i + 1], sizeof(T) * moveCount);
   --s.size;
-}
-
-template<typename T>
-void Slice<T>::push_back(T val) {
-  append(*this, std::move(val));
 }
 
 
