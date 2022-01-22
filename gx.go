@@ -1342,7 +1342,6 @@ func (c *Compiler) compile() {
 		c.write("//\n// Variables\n//\n\n")
 		for _, valueSpec := range valueSpecs {
 			for i, name := range valueSpec.Names {
-				c.write("inline ")
 				if name.Obj.Kind == ast.Con {
 					c.write("constexpr ")
 				}
