@@ -94,13 +94,11 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 		switch typ := typ.(type) {
 		case *types.Basic:
 			switch typ.Kind() {
-			case types.Bool:
+			case types.Bool, types.UntypedBool:
 				builder.WriteString("bool")
-			case types.Int:
+			case types.Int, types.UntypedInt:
 				builder.WriteString("int")
-			case types.Float32:
-				builder.WriteString("float")
-			case types.Float64:
+			case types.Float32, types.Float64, types.UntypedFloat:
 				builder.WriteString("float")
 			case types.Byte:
 				builder.WriteString("unsigned char")
@@ -1356,11 +1354,7 @@ func (c *Compiler) compile() {
 				if name.Obj.Kind == ast.Con {
 					c.write("constexpr ")
 				}
-				if valueSpec.Type != nil {
-					c.write(c.genTypeExpr(c.types.TypeOf(valueSpec.Type), valueSpec.Type.Pos()))
-				} else {
-					c.write("auto ")
-				}
+				c.write(c.genTypeExpr(c.types.TypeOf(valueSpec.Names[i]), valueSpec.Pos()))
 				c.writeIdent(name)
 				if len(valueSpec.Values) > 0 {
 					c.write(" = ")

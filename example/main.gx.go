@@ -599,6 +599,14 @@ func apply(val int, fn func(int) int) int {
 
 var globalApplied = apply(3, func(i int) int { return 2 * i })
 
+type Enum int
+
+const (
+	ZeroEnum Enum = 0
+	OneEnum       = 1
+	TwoEnum       = 2
+)
+
 func testGlobalVariables() {
 	{
 		check(globalX == 23)
@@ -619,6 +627,11 @@ func testGlobalVariables() {
 	}
 	{
 		check(globalApplied == 6)
+	}
+	{
+		check(ZeroEnum == 0)
+		check(OneEnum == 1)
+		check(TwoEnum == 2)
 	}
 }
 
