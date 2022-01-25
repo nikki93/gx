@@ -724,6 +724,14 @@ func (c *Compiler) writeUnaryExpr(un *ast.UnaryExpr) {
 }
 
 func (c *Compiler) writeBinaryExpr(bin *ast.BinaryExpr) {
+	needParens := false
+	switch bin.Op {
+	case token.AND, token.OR, token.XOR:
+		needParens = true
+	}
+	if needParens {
+		c.write("(")
+	}
 	c.writeExpr(bin.X)
 	c.write(" ")
 	switch op := bin.Op; op {
@@ -737,6 +745,9 @@ func (c *Compiler) writeBinaryExpr(bin *ast.BinaryExpr) {
 	}
 	c.write(" ")
 	c.writeExpr(bin.Y)
+	if needParens {
+		c.write(")")
+	}
 }
 
 func (c *Compiler) writeKeyValueExpr(kv *ast.KeyValueExpr) {
