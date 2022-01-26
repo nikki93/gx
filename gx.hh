@@ -92,11 +92,23 @@ struct Array {
     return data[i];
   }
 
+  const T &operator[](int i) const {
+    return const_cast<Array &>(*this)[i];
+  }
+
   T *begin() {
     return &data[0];
   }
 
+  const T *begin() const {
+    return &data[0];
+  }
+
   T *end() {
+    return &data[N];
+  }
+
+  const T *end() const {
     return &data[N];
   }
 };
