@@ -525,7 +525,11 @@ func (c *Compiler) writeFuncLit(lit *ast.FuncLit) {
 			c.write(", ")
 		}
 		param := sig.Params().At(i)
-		c.write(c.genTypeExpr(param.Type(), param.Pos()))
+		if _, ok := param.Type().(*types.Signature); ok {
+			c.write("auto &&")
+		} else {
+			c.write(c.genTypeExpr(param.Type(), param.Pos()))
+		}
 		c.write(param.Name())
 	}
 	c.write(") ")
