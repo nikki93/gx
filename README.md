@@ -1,7 +1,6 @@
 Currently being used mostly for game / interactive application experiments--
-
-[Development workflow in a game](https://www.youtube.com/watch?v=8He97Sl9iy0) (state-preserving code reload incl. crash recovery, reflection-based serialization and scene editor UI)
-[Game jam game it was used on](https://github.com/nikki93/raylib-5k) (source included, link to game playable in web (Wasm), same engine as in above video)
+- [Development workflow in a game](https://www.youtube.com/watch?v=8He97Sl9iy0) (state-preserving code reload incl. crash recovery, reflection-based serialization and scene editor UI)
+- [Game jam game it was used on](https://github.com/nikki93/raylib-5k) (source included, link to game playable in web (Wasm), same engine as in above video)
 
 # gx, a Go -> C++ compiler
 
