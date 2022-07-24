@@ -1,3 +1,8 @@
+Currently being used mostly for game / interactive application experiments--
+
+[Development workflow in a game](https://www.youtube.com/watch?v=8He97Sl9iy0) (state-preserving code reload incl. crash recovery, reflection-based serialization and scene editor UI)
+[Game jam game it was used on](https://github.com/nikki93/raylib-5k) (source included, link to game playable in web (Wasm), same engine as in above video)
+
 # gx, a Go -> C++ compiler
 
 Historically I've used C and C++ for gameplay programming so far, but there are various usability issues with it, especially regarding various dark corners and tangents in the language. With intention I'm able to be aware of and stick to a subset that works well, but generally it's tough to have new programmers pick it up or to establish consensus and best practices across a team (I lead engineering on a team that uses C++ for a game engine, and the language definitely complicates things). This was the reasoning behind making Go itself -- eg. in this talk from Rob Pike https://www.infoq.com/presentations/Go-Google/ (esp. around 11 minutes in)
