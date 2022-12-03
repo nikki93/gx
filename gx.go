@@ -89,254 +89,258 @@ func lowerFirst(s string) string {
 func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 	if result, ok := c.genTypeExprs[typ]; ok {
 		return result
-	} else {
-		builder := &strings.Builder{}
-		switch typ := typ.(type) {
-		case *types.Basic:
-			switch typ.Kind() {
-			case types.Bool, types.UntypedBool:
-				builder.WriteString("bool")
-			case types.Int, types.UntypedInt:
-				builder.WriteString("int")
-			case types.Float32, types.Float64, types.UntypedFloat:
-				builder.WriteString("float")
-			case types.Byte:
-				builder.WriteString("std::uint8_t")
-			case types.String:
-				builder.WriteString("gx::String")
-			default:
-				c.errorf(pos, "%s not supported", typ.String())
-			}
-			builder.WriteByte(' ')
-		case *types.Pointer:
-			builder.WriteString(c.genTypeExpr(typ.Elem(), pos))
-			builder.WriteByte('*')
-		case *types.Named:
-			name := typ.Obj()
-			if ext, ok := c.externs[name]; ok {
-				builder.WriteString(ext)
-			} else {
-				builder.WriteString(name.Name())
-			}
-			if typeArgs := typ.TypeArgs(); typeArgs != nil {
-				builder.WriteString("<")
-				for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
-					if i > 0 {
-						builder.WriteString(", ")
-					}
-					builder.WriteString(trimFinalSpace(c.genTypeExpr(typeArgs.At(i), pos)))
-				}
-				builder.WriteString(">")
-			}
-			builder.WriteByte(' ')
-		case *types.TypeParam:
-			builder.WriteString(typ.Obj().Name())
-			builder.WriteByte(' ')
-		case *types.Array:
-			builder.WriteString("gx::Array<")
-			builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
-			builder.WriteString(", ")
-			builder.WriteString(strconv.FormatInt(typ.Len(), 10))
-			builder.WriteString(">")
-			builder.WriteByte(' ')
-		case *types.Slice:
-			builder.WriteString("gx::Slice<")
-			builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
-			builder.WriteString(">")
-			builder.WriteByte(' ')
+	}
+
+	builder := &strings.Builder{}
+	switch typ := typ.(type) {
+	case *types.Basic:
+		switch typ.Kind() {
+		case types.Bool, types.UntypedBool:
+			builder.WriteString("bool")
+		case types.Int, types.UntypedInt:
+			builder.WriteString("int")
+		case types.Float32, types.Float64, types.UntypedFloat:
+			builder.WriteString("float")
+		case types.Byte:
+			builder.WriteString("std::uint8_t")
+		case types.String:
+			builder.WriteString("gx::String")
 		default:
 			c.errorf(pos, "%s not supported", typ.String())
 		}
-		result = builder.String()
-		c.genTypeExprs[typ] = result
-		return result
+		builder.WriteByte(' ')
+	case *types.Pointer:
+		builder.WriteString(c.genTypeExpr(typ.Elem(), pos))
+		builder.WriteByte('*')
+	case *types.Named:
+		name := typ.Obj()
+		if ext, ok := c.externs[name]; ok {
+			builder.WriteString(ext)
+		} else {
+			builder.WriteString(name.Name())
+		}
+		if typeArgs := typ.TypeArgs(); typeArgs != nil {
+			builder.WriteString("<")
+			for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
+				if i > 0 {
+					builder.WriteString(", ")
+				}
+				builder.WriteString(trimFinalSpace(c.genTypeExpr(typeArgs.At(i), pos)))
+			}
+			builder.WriteString(">")
+		}
+		builder.WriteByte(' ')
+	case *types.TypeParam:
+		builder.WriteString(typ.Obj().Name())
+		builder.WriteByte(' ')
+	case *types.Array:
+		builder.WriteString("gx::Array<")
+		builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
+		builder.WriteString(", ")
+		builder.WriteString(strconv.FormatInt(typ.Len(), 10))
+		builder.WriteString(">")
+		builder.WriteByte(' ')
+	case *types.Slice:
+		builder.WriteString("gx::Slice<")
+		builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
+		builder.WriteString(">")
+		builder.WriteByte(' ')
+	default:
+		c.errorf(pos, "%s not supported", typ.String())
 	}
+
+	result := builder.String()
+	c.genTypeExprs[typ] = result
+	return result
 }
 
 func (c *Compiler) genTypeDecl(typeSpec *ast.TypeSpec) string {
 	if result, ok := c.genTypeDecls[typeSpec]; ok {
 		return result
-	} else {
-		builder := &strings.Builder{}
-		if typeSpec.TypeParams != nil {
-			builder.WriteString("template<")
-			for i, typeParam := range typeSpec.TypeParams.List {
-				for j, name := range typeParam.Names {
-					if i > 0 || j > 0 {
-						builder.WriteString(", ")
-					}
-					builder.WriteString("typename ")
-					builder.WriteString(name.String())
-				}
-			}
-			builder.WriteString(">\n")
-		}
-		switch typeSpec.Type.(type) {
-		case *ast.StructType:
-			builder.WriteString("struct ")
-			builder.WriteString(typeSpec.Name.String())
-		case *ast.InterfaceType:
-			// Empty -- only used as generic constraint during typecheck
-			builder = &strings.Builder{}
-		default:
-			builder.WriteString("using ")
-			builder.WriteString(typeSpec.Name.String())
-			builder.WriteString(" = ")
-			typ := c.types.TypeOf(typeSpec.Type)
-			builder.WriteString(trimFinalSpace(c.genTypeExpr(typ, typeSpec.Type.Pos())))
-		}
-		result = builder.String()
-		c.genTypeDecls[typeSpec] = result
-		return result
 	}
+
+	builder := &strings.Builder{}
+	if typeSpec.TypeParams != nil {
+		builder.WriteString("template<")
+		for i, typeParam := range typeSpec.TypeParams.List {
+			for j, name := range typeParam.Names {
+				if i > 0 || j > 0 {
+					builder.WriteString(", ")
+				}
+				builder.WriteString("typename ")
+				builder.WriteString(name.String())
+			}
+		}
+		builder.WriteString(">\n")
+	}
+	switch typeSpec.Type.(type) {
+	case *ast.StructType:
+		builder.WriteString("struct ")
+		builder.WriteString(typeSpec.Name.String())
+	case *ast.InterfaceType:
+		// Empty -- only used as generic constraint during typecheck
+		builder = &strings.Builder{}
+	default:
+		builder.WriteString("using ")
+		builder.WriteString(typeSpec.Name.String())
+		builder.WriteString(" = ")
+		typ := c.types.TypeOf(typeSpec.Type)
+		builder.WriteString(trimFinalSpace(c.genTypeExpr(typ, typeSpec.Type.Pos())))
+	}
+
+	result := builder.String()
+	c.genTypeDecls[typeSpec] = result
+	return result
 }
 
 func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 	if result, ok := c.genTypeDefns[typeSpec]; ok {
 		return result
-	} else {
-		builder := &strings.Builder{}
-		switch typ := typeSpec.Type.(type) {
-		case *ast.StructType:
-			builder.WriteString(c.genTypeDecl(typeSpec))
-			builder.WriteString(" {\n")
-			for _, field := range typ.Fields.List {
-				if fieldType := c.types.TypeOf(field.Type); fieldType != nil {
-					var defaultVal string
-					if tag := field.Tag; tag != nil && tag.Kind == token.STRING {
-						unquoted, _ := strconv.Unquote(tag.Value)
-						defaultVal = reflect.StructTag(unquoted).Get("default")
+	}
+
+	builder := &strings.Builder{}
+	switch typ := typeSpec.Type.(type) {
+	case *ast.StructType:
+		builder.WriteString(c.genTypeDecl(typeSpec))
+		builder.WriteString(" {\n")
+		for _, field := range typ.Fields.List {
+			if fieldType := c.types.TypeOf(field.Type); fieldType != nil {
+				var defaultVal string
+				if tag := field.Tag; tag != nil && tag.Kind == token.STRING {
+					unquoted, _ := strconv.Unquote(tag.Value)
+					defaultVal = reflect.StructTag(unquoted).Get("default")
+				}
+				typeExpr := c.genTypeExpr(fieldType, field.Type.Pos())
+				for _, fieldName := range field.Names {
+					builder.WriteString("  ")
+					builder.WriteString(typeExpr)
+					builder.WriteString(fieldName.String())
+					if defaultVal != "" {
+						builder.WriteString(" = ")
+						builder.WriteString(defaultVal)
 					}
-					typeExpr := c.genTypeExpr(fieldType, field.Type.Pos())
-					for _, fieldName := range field.Names {
-						builder.WriteString("  ")
-						builder.WriteString(typeExpr)
-						builder.WriteString(fieldName.String())
-						if defaultVal != "" {
-							builder.WriteString(" = ")
-							builder.WriteString(defaultVal)
-						}
-						builder.WriteString(";\n")
-					}
+					builder.WriteString(";\n")
 				}
 			}
-			builder.WriteByte('}')
-		case *ast.InterfaceType:
-			// Empty -- only used as generic constraint during typecheck
-		default:
-			// Empty -- alias declaration is definition
 		}
-		result = builder.String()
-		c.genTypeDefns[typeSpec] = result
-		return result
+		builder.WriteByte('}')
+	case *ast.InterfaceType:
+		// Empty -- only used as generic constraint during typecheck
+	default:
+		// Empty -- alias declaration is definition
 	}
+
+	result := builder.String()
+	c.genTypeDefns[typeSpec] = result
+	return result
 }
 
 func (c *Compiler) genTypeMeta(typeSpec *ast.TypeSpec) string {
 	if result, ok := c.genTypeMetas[typeSpec]; ok {
 		return result
-	} else {
-		builder := &strings.Builder{}
-		switch typ := typeSpec.Type.(type) {
-		case *ast.StructType:
-			typeParamsBuilder := &strings.Builder{}
-			if typeSpec.TypeParams != nil {
-				for i, typeParam := range typeSpec.TypeParams.List {
-					for j, name := range typeParam.Names {
-						if i > 0 || j > 0 {
-							typeParamsBuilder.WriteString(", ")
-						}
-						typeParamsBuilder.WriteString("typename ")
-						typeParamsBuilder.WriteString(name.String())
-					}
-				}
-			}
-			typeParams := typeParamsBuilder.String()
-			typeExprBuilder := &strings.Builder{}
-			typeExprBuilder.WriteString(typeSpec.Name.String())
-			if typeSpec.TypeParams != nil {
-				typeExprBuilder.WriteString("<")
-				for i, typeParam := range typeSpec.TypeParams.List {
-					for j, name := range typeParam.Names {
-						if i > 0 || j > 0 {
-							typeExprBuilder.WriteString(", ")
-						}
-						typeExprBuilder.WriteString(name.String())
-					}
-				}
-				typeExprBuilder.WriteString(">")
-			}
-			typeExpr := typeExprBuilder.String()
+	}
 
-			// `gx::FieldTag` specializations
-			tagIndex := 0
-			for _, field := range typ.Fields.List {
-				if field.Type != nil {
-					for _, fieldName := range field.Names {
-						if fieldName.IsExported() {
-							builder.WriteString("template<")
-							builder.WriteString(typeParams)
-							builder.WriteString(">\nstruct gx::FieldTag<")
-							builder.WriteString(typeExpr)
-							builder.WriteString(", ")
-							builder.WriteString(strconv.Itoa(tagIndex))
-							builder.WriteString("> {\n")
-							builder.WriteString("  inline static constexpr gx::FieldAttribs attribs { .name = \"")
-							builder.WriteString(lowerFirst(fieldName.String()))
-							builder.WriteByte('"')
-							if tag := field.Tag; tag != nil && tag.Kind == token.STRING {
-								unquoted, _ := strconv.Unquote(tag.Value)
-								if attribs := reflect.StructTag(unquoted).Get("attribs"); attribs != "" {
-									for _, key := range strings.Split(attribs, ",") {
-										builder.WriteString(", .")
-										builder.WriteString(strings.TrimSpace(key))
-										builder.WriteString(" = true")
-									}
+	builder := &strings.Builder{}
+	switch typ := typeSpec.Type.(type) {
+	case *ast.StructType:
+		typeParamsBuilder := &strings.Builder{}
+		if typeSpec.TypeParams != nil {
+			for i, typeParam := range typeSpec.TypeParams.List {
+				for j, name := range typeParam.Names {
+					if i > 0 || j > 0 {
+						typeParamsBuilder.WriteString(", ")
+					}
+					typeParamsBuilder.WriteString("typename ")
+					typeParamsBuilder.WriteString(name.String())
+				}
+			}
+		}
+		typeParams := typeParamsBuilder.String()
+		typeExprBuilder := &strings.Builder{}
+		typeExprBuilder.WriteString(typeSpec.Name.String())
+		if typeSpec.TypeParams != nil {
+			typeExprBuilder.WriteString("<")
+			for i, typeParam := range typeSpec.TypeParams.List {
+				for j, name := range typeParam.Names {
+					if i > 0 || j > 0 {
+						typeExprBuilder.WriteString(", ")
+					}
+					typeExprBuilder.WriteString(name.String())
+				}
+			}
+			typeExprBuilder.WriteString(">")
+		}
+		typeExpr := typeExprBuilder.String()
+
+		// `gx::FieldTag` specializations
+		tagIndex := 0
+		for _, field := range typ.Fields.List {
+			if field.Type != nil {
+				for _, fieldName := range field.Names {
+					if fieldName.IsExported() {
+						builder.WriteString("template<")
+						builder.WriteString(typeParams)
+						builder.WriteString(">\nstruct gx::FieldTag<")
+						builder.WriteString(typeExpr)
+						builder.WriteString(", ")
+						builder.WriteString(strconv.Itoa(tagIndex))
+						builder.WriteString("> {\n")
+						builder.WriteString("  inline static constexpr gx::FieldAttribs attribs { .name = \"")
+						builder.WriteString(lowerFirst(fieldName.String()))
+						builder.WriteByte('"')
+						if tag := field.Tag; tag != nil && tag.Kind == token.STRING {
+							unquoted, _ := strconv.Unquote(tag.Value)
+							if attribs := reflect.StructTag(unquoted).Get("attribs"); attribs != "" {
+								for _, key := range strings.Split(attribs, ",") {
+									builder.WriteString(", .")
+									builder.WriteString(strings.TrimSpace(key))
+									builder.WriteString(" = true")
 								}
 							}
-							builder.WriteString(" };\n};\n")
-							tagIndex++
 						}
+						builder.WriteString(" };\n};\n")
+						tagIndex++
 					}
 				}
 			}
-
-			// `forEachField`
-			if typeParams != "" {
-				builder.WriteString("template<")
-				builder.WriteString(typeParams)
-				builder.WriteString(">\n")
-			}
-			builder.WriteString("inline void forEachField(")
-			builder.WriteString(typeExpr)
-			builder.WriteString(" &val, auto &&func) {\n")
-			tagIndex = 0
-			for _, field := range typ.Fields.List {
-				if field.Type != nil {
-					for _, fieldName := range field.Names {
-						if fieldName.IsExported() {
-							builder.WriteString("  func(gx::FieldTag<")
-							builder.WriteString(typeExpr)
-							builder.WriteString(", ")
-							builder.WriteString(strconv.Itoa(tagIndex))
-							builder.WriteString(">(), val.")
-							builder.WriteString(fieldName.String())
-							builder.WriteString(");\n")
-							tagIndex++
-						}
-					}
-				}
-			}
-			builder.WriteString("}")
-		case *ast.InterfaceType:
-			// Empty -- only used as generic constraint during typecheck
-		default:
-			// Empty -- alias declaration is definition
 		}
-		result = builder.String()
-		c.genTypeMetas[typeSpec] = result
-		return result
+
+		// `forEachField`
+		if typeParams != "" {
+			builder.WriteString("template<")
+			builder.WriteString(typeParams)
+			builder.WriteString(">\n")
+		}
+		builder.WriteString("inline void forEachField(")
+		builder.WriteString(typeExpr)
+		builder.WriteString(" &val, auto &&func) {\n")
+		tagIndex = 0
+		for _, field := range typ.Fields.List {
+			if field.Type != nil {
+				for _, fieldName := range field.Names {
+					if fieldName.IsExported() {
+						builder.WriteString("  func(gx::FieldTag<")
+						builder.WriteString(typeExpr)
+						builder.WriteString(", ")
+						builder.WriteString(strconv.Itoa(tagIndex))
+						builder.WriteString(">(), val.")
+						builder.WriteString(fieldName.String())
+						builder.WriteString(");\n")
+						tagIndex++
+					}
+				}
+			}
+		}
+		builder.WriteString("}")
+	case *ast.InterfaceType:
+		// Empty -- only used as generic constraint during typecheck
+	default:
+		// Empty -- alias declaration is definition
 	}
+
+	result := builder.String()
+	c.genTypeMetas[typeSpec] = result
+	return result
 }
 
 //
@@ -348,133 +352,133 @@ var methodFieldTagRe = regexp.MustCompile(`^(.*)_([^_]*)$`)
 func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 	if result, ok := c.genFuncDecls[decl]; ok {
 		return result
-	} else {
-		obj := c.types.Defs[decl.Name]
-		sig := obj.Type().(*types.Signature)
-		recv := sig.Recv()
-
-		builder := &strings.Builder{}
-
-		// Type parameters
-		addTypeParams := func(typeParams *types.TypeParamList) {
-			if typeParams != nil {
-				builder.WriteString("template<")
-				for i, nTypeParams := 0, typeParams.Len(); i < nTypeParams; i++ {
-					if i > 0 {
-						builder.WriteString(", ")
-					}
-					builder.WriteString("typename ")
-					builder.WriteString(typeParams.At(i).Obj().Name())
-				}
-				builder.WriteString(">\n")
-			}
-		}
-		var recvNamedType *types.Named
-		if recv != nil {
-			switch recvType := recv.Type().(type) {
-			case *types.Named:
-				recvNamedType = recvType
-				addTypeParams(recvType.TypeParams())
-			case *types.Pointer:
-				switch elemType := recvType.Elem().(type) {
-				case *types.Named:
-					recvNamedType = elemType
-					addTypeParams(elemType.TypeParams())
-				}
-			}
-		}
-		addTypeParams(sig.TypeParams())
-
-		// Return type
-		if rets := sig.Results(); rets.Len() > 1 {
-			c.errorf(decl.Type.Results.Pos(), "multiple return values not supported")
-		} else if rets.Len() == 1 {
-			ret := rets.At(0)
-			builder.WriteString(c.genTypeExpr(ret.Type(), ret.Pos()))
-		} else {
-			if obj.Pkg().Name() == "main" && decl.Name.String() == "main" && recv == nil {
-				builder.WriteString("int ")
-			} else {
-				builder.WriteString("void ")
-			}
-		}
-
-		// Field tag
-		name := decl.Name.String()
-		fieldTag := ""
-		if recvNamedType != nil {
-			if structType, ok := recvNamedType.Underlying().(*types.Struct); ok {
-				if matches := methodFieldTagRe.FindStringSubmatch(name); len(matches) == 3 {
-					name = matches[1]
-					fieldName := matches[2]
-					matchingTagIndex := -1
-					tagIndex := 0
-					numFields := structType.NumFields()
-					for fieldIndex := 0; fieldIndex < numFields; fieldIndex++ {
-						if field := structType.Field(fieldIndex); field.Exported() && !field.Embedded() {
-							if field.Name() == fieldName {
-								matchingTagIndex = tagIndex
-							}
-							tagIndex++
-						}
-					}
-					typeExpr := trimFinalSpace(c.genTypeExpr(recvNamedType, recv.Pos()))
-					if matchingTagIndex == -1 {
-						c.errorf(decl.Name.Pos(), "struct %s has no field named %s", typeExpr, fieldName)
-					} else {
-						fieldTagBuilder := &strings.Builder{}
-						fieldTagBuilder.WriteString("gx::FieldTag<")
-						fieldTagBuilder.WriteString(typeExpr)
-						fieldTagBuilder.WriteString(", ")
-						fieldTagBuilder.WriteString(strconv.Itoa(matchingTagIndex))
-						fieldTagBuilder.WriteString(">")
-						fieldTag = fieldTagBuilder.String()
-						c.methodRenames[obj] = name
-						c.methodFieldTags[obj] = fieldTag
-					}
-				}
-			}
-		}
-
-		// Name
-		builder.WriteString(name)
-
-		// Parameters
-		builder.WriteByte('(')
-		addParam := func(param *types.Var) {
-			typ := param.Type()
-			switch typ.Underlying().(type) {
-			case *types.Array:
-				c.errorf(param.Pos(), "cannot pass array by value, use pointer to array *%s instead", typ)
-			case *types.Slice:
-				c.errorf(param.Pos(), "cannot pass slice by value, use pointer to slice *%s instead", typ)
-			}
-			if _, ok := typ.(*types.Signature); ok {
-				builder.WriteString("auto &&")
-			} else {
-				builder.WriteString(c.genTypeExpr(typ, param.Pos()))
-			}
-			builder.WriteString(param.Name())
-		}
-		if recv != nil {
-			if fieldTag != "" {
-				builder.WriteString(fieldTag)
-				builder.WriteString(", ")
-			}
-			addParam(recv)
-		}
-		for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
-			if i > 0 || recv != nil {
-				builder.WriteString(", ")
-			}
-			addParam(sig.Params().At(i))
-		}
-		builder.WriteByte(')')
-
-		result = builder.String()
-		c.genFuncDecls[decl] = result
-		return result
 	}
+
+	obj := c.types.Defs[decl.Name]
+	sig := obj.Type().(*types.Signature)
+	recv := sig.Recv()
+
+	builder := &strings.Builder{}
+
+	// Type parameters
+	addTypeParams := func(typeParams *types.TypeParamList) {
+		if typeParams != nil {
+			builder.WriteString("template<")
+			for i, nTypeParams := 0, typeParams.Len(); i < nTypeParams; i++ {
+				if i > 0 {
+					builder.WriteString(", ")
+				}
+				builder.WriteString("typename ")
+				builder.WriteString(typeParams.At(i).Obj().Name())
+			}
+			builder.WriteString(">\n")
+		}
+	}
+	var recvNamedType *types.Named
+	if recv != nil {
+		switch recvType := recv.Type().(type) {
+		case *types.Named:
+			recvNamedType = recvType
+			addTypeParams(recvType.TypeParams())
+		case *types.Pointer:
+			switch elemType := recvType.Elem().(type) {
+			case *types.Named:
+				recvNamedType = elemType
+				addTypeParams(elemType.TypeParams())
+			}
+		}
+	}
+	addTypeParams(sig.TypeParams())
+
+	// Return type
+	if rets := sig.Results(); rets.Len() > 1 {
+		c.errorf(decl.Type.Results.Pos(), "multiple return values not supported")
+	} else if rets.Len() == 1 {
+		ret := rets.At(0)
+		builder.WriteString(c.genTypeExpr(ret.Type(), ret.Pos()))
+	} else {
+		if obj.Pkg().Name() == "main" && decl.Name.String() == "main" && recv == nil {
+			builder.WriteString("int ")
+		} else {
+			builder.WriteString("void ")
+		}
+	}
+
+	// Field tag
+	name := decl.Name.String()
+	fieldTag := ""
+	if recvNamedType != nil {
+		if structType, ok := recvNamedType.Underlying().(*types.Struct); ok {
+			if matches := methodFieldTagRe.FindStringSubmatch(name); len(matches) == 3 {
+				name = matches[1]
+				fieldName := matches[2]
+				matchingTagIndex := -1
+				tagIndex := 0
+				numFields := structType.NumFields()
+				for fieldIndex := 0; fieldIndex < numFields; fieldIndex++ {
+					if field := structType.Field(fieldIndex); field.Exported() && !field.Embedded() {
+						if field.Name() == fieldName {
+							matchingTagIndex = tagIndex
+						}
+						tagIndex++
+					}
+				}
+				typeExpr := trimFinalSpace(c.genTypeExpr(recvNamedType, recv.Pos()))
+				if matchingTagIndex == -1 {
+					c.errorf(decl.Name.Pos(), "struct %s has no field named %s", typeExpr, fieldName)
+				} else {
+					fieldTagBuilder := &strings.Builder{}
+					fieldTagBuilder.WriteString("gx::FieldTag<")
+					fieldTagBuilder.WriteString(typeExpr)
+					fieldTagBuilder.WriteString(", ")
+					fieldTagBuilder.WriteString(strconv.Itoa(matchingTagIndex))
+					fieldTagBuilder.WriteString(">")
+					fieldTag = fieldTagBuilder.String()
+					c.methodRenames[obj] = name
+					c.methodFieldTags[obj] = fieldTag
+				}
+			}
+		}
+	}
+
+	// Name
+	builder.WriteString(name)
+
+	// Parameters
+	builder.WriteByte('(')
+	addParam := func(param *types.Var) {
+		typ := param.Type()
+		switch typ.Underlying().(type) {
+		case *types.Array:
+			c.errorf(param.Pos(), "cannot pass array by value, use pointer to array *%s instead", typ)
+		case *types.Slice:
+			c.errorf(param.Pos(), "cannot pass slice by value, use pointer to slice *%s instead", typ)
+		}
+		if _, ok := typ.(*types.Signature); ok {
+			builder.WriteString("auto &&")
+		} else {
+			builder.WriteString(c.genTypeExpr(typ, param.Pos()))
+		}
+		builder.WriteString(param.Name())
+	}
+	if recv != nil {
+		if fieldTag != "" {
+			builder.WriteString(fieldTag)
+			builder.WriteString(", ")
+		}
+		addParam(recv)
+	}
+	for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
+		if i > 0 || recv != nil {
+			builder.WriteString(", ")
+		}
+		addParam(sig.Params().At(i))
+	}
+	builder.WriteByte(')')
+
+	result := builder.String()
+	c.genFuncDecls[decl] = result
+	return result
 }
 
 //
