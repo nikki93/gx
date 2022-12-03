@@ -706,8 +706,9 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 }
 
 func (c *Compiler) writeStarExpr(star *ast.StarExpr) {
-	c.write("*")
+	c.write("gx::deref(")
 	c.writeExpr(star.X)
+	c.write(")")
 }
 
 func (c *Compiler) writeUnaryExpr(un *ast.UnaryExpr) {
