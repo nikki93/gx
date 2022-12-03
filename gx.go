@@ -21,17 +21,26 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+type Target int
+
+const (
+	CPP Target = iota
+	GLSL
+)
+
 type Compiler struct {
 	mainPkgPath string
 
 	fileSet *token.FileSet
 	types   *types.Info
 
+	target Target
+
 	externs         map[types.Object]string
 	fieldIndices    map[*types.Var]int
 	methodRenames   map[types.Object]string
 	methodFieldTags map[types.Object]string
-	genTypeExprs    map[types.Type]string
+	genTypeExprs    map[Target]map[types.Type]string
 	genTypeDecls    map[*ast.TypeSpec]string
 	genTypeDefns    map[*ast.TypeSpec]string
 	genTypeMetas    map[*ast.TypeSpec]string
@@ -87,70 +96,99 @@ func lowerFirst(s string) string {
 //
 
 func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
-	if result, ok := c.genTypeExprs[typ]; ok {
+	if result, ok := c.genTypeExprs[c.target][typ]; ok {
 		return result
 	}
 
 	builder := &strings.Builder{}
-	switch typ := typ.(type) {
-	case *types.Basic:
-		switch typ.Kind() {
-		case types.Bool, types.UntypedBool:
-			builder.WriteString("bool")
-		case types.Int, types.UntypedInt:
-			builder.WriteString("int")
-		case types.Float32, types.Float64, types.UntypedFloat:
-			builder.WriteString("float")
-		case types.Byte:
-			builder.WriteString("std::uint8_t")
-		case types.String:
-			builder.WriteString("gx::String")
+	switch c.target {
+	case CPP:
+		switch typ := typ.(type) {
+		case *types.Basic:
+			switch typ.Kind() {
+			case types.Bool, types.UntypedBool:
+				builder.WriteString("bool")
+			case types.Int, types.UntypedInt:
+				builder.WriteString("int")
+			case types.Float32, types.Float64, types.UntypedFloat:
+				builder.WriteString("float")
+			case types.Byte:
+				builder.WriteString("std::uint8_t")
+			case types.String:
+				builder.WriteString("gx::String")
+			default:
+				c.errorf(pos, "%s not supported", typ.String())
+			}
+			builder.WriteByte(' ')
+		case *types.Pointer:
+			builder.WriteString(c.genTypeExpr(typ.Elem(), pos))
+			builder.WriteByte('*')
+		case *types.Named:
+			name := typ.Obj()
+			if ext, ok := c.externs[name]; ok {
+				builder.WriteString(ext)
+			} else {
+				builder.WriteString(name.Name())
+			}
+			if typeArgs := typ.TypeArgs(); typeArgs != nil {
+				builder.WriteString("<")
+				for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
+					if i > 0 {
+						builder.WriteString(", ")
+					}
+					builder.WriteString(trimFinalSpace(c.genTypeExpr(typeArgs.At(i), pos)))
+				}
+				builder.WriteString(">")
+			}
+			builder.WriteByte(' ')
+		case *types.TypeParam:
+			builder.WriteString(typ.Obj().Name())
+			builder.WriteByte(' ')
+		case *types.Array:
+			builder.WriteString("gx::Array<")
+			builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
+			builder.WriteString(", ")
+			builder.WriteString(strconv.FormatInt(typ.Len(), 10))
+			builder.WriteString(">")
+			builder.WriteByte(' ')
+		case *types.Slice:
+			builder.WriteString("gx::Slice<")
+			builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
+			builder.WriteString(">")
+			builder.WriteByte(' ')
 		default:
 			c.errorf(pos, "%s not supported", typ.String())
 		}
-		builder.WriteByte(' ')
-	case *types.Pointer:
-		builder.WriteString(c.genTypeExpr(typ.Elem(), pos))
-		builder.WriteByte('*')
-	case *types.Named:
-		name := typ.Obj()
-		if ext, ok := c.externs[name]; ok {
-			builder.WriteString(ext)
-		} else {
-			builder.WriteString(name.Name())
-		}
-		if typeArgs := typ.TypeArgs(); typeArgs != nil {
-			builder.WriteString("<")
-			for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
-				if i > 0 {
-					builder.WriteString(", ")
-				}
-				builder.WriteString(trimFinalSpace(c.genTypeExpr(typeArgs.At(i), pos)))
+	case GLSL:
+		switch typ := typ.(type) {
+		case *types.Basic:
+			switch typ.Kind() {
+			case types.Bool, types.UntypedBool:
+				builder.WriteString("bool")
+			case types.Int, types.UntypedInt:
+				builder.WriteString("int")
+			case types.Float32, types.Float64, types.UntypedFloat:
+				builder.WriteString("float")
+			default:
+				c.errorf(pos, "%s not supported in glsl", typ.String())
 			}
-			builder.WriteString(">")
+			builder.WriteByte(' ')
+		case *types.Named:
+			name := typ.Obj()
+			switch name.Name() {
+			case "Vec2", "Vec3", "Vec4", "Mat2", "Mat3", "Mat4", "Sampler2D":
+				builder.WriteString(lowerFirst(name.Name()))
+			default:
+				c.errorf(pos, "%s not supported in glsl", typ.String())
+			}
+			builder.WriteByte(' ')
+		default:
+			c.errorf(pos, "%s not supported in glsl", typ.String())
 		}
-		builder.WriteByte(' ')
-	case *types.TypeParam:
-		builder.WriteString(typ.Obj().Name())
-		builder.WriteByte(' ')
-	case *types.Array:
-		builder.WriteString("gx::Array<")
-		builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
-		builder.WriteString(", ")
-		builder.WriteString(strconv.FormatInt(typ.Len(), 10))
-		builder.WriteString(">")
-		builder.WriteByte(' ')
-	case *types.Slice:
-		builder.WriteString("gx::Slice<")
-		builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
-		builder.WriteString(">")
-		builder.WriteByte(' ')
-	default:
-		c.errorf(pos, "%s not supported", typ.String())
 	}
 
 	result := builder.String()
-	c.genTypeExprs[typ] = result
+	c.genTypeExprs[c.target][typ] = result
 	return result
 }
 
@@ -619,6 +657,8 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 	method := false
 	funType := c.types.Types[call.Fun]
 	if _, ok := funType.Type.Underlying().(*types.Signature); ok || funType.IsBuiltin() {
+		// TODO: GLSL entrypoint
+		// TODO: GLSL built-ins and operators
 		// Function or method
 		if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
 			obj := c.types.Uses[sel.Sel]
@@ -817,6 +857,7 @@ func (c *Compiler) writeAssignStmt(assignStmt *ast.AssignStmt) {
 		if typ, ok := c.types.TypeOf(assignStmt.Rhs[0]).(*types.Basic); ok && typ.Kind() == types.String {
 			c.write("gx::String ")
 		} else {
+			// TODO: Explicit type for GLSL
 			c.write("auto ")
 		}
 	}
@@ -983,7 +1024,8 @@ func (c *Compiler) compile() {
 	c.fieldIndices = make(map[*types.Var]int)
 	c.methodRenames = make(map[types.Object]string)
 	c.methodFieldTags = make(map[types.Object]string)
-	c.genTypeExprs = make(map[types.Type]string)
+	c.genTypeExprs = make(map[Target]map[types.Type]string)
+	c.genTypeExprs[CPP] = make(map[types.Type]string)
 	c.genTypeDecls = make(map[*ast.TypeSpec]string)
 	c.genTypeDefns = make(map[*ast.TypeSpec]string)
 	c.genTypeMetas = make(map[*ast.TypeSpec]string)
