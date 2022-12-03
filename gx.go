@@ -574,6 +574,7 @@ func (c *Compiler) writeFuncLit(lit *ast.FuncLit) {
 }
 
 func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
+	//TODO: GLSL constructors
 	c.write(c.genTypeExpr(c.types.TypeOf(lit), lit.Pos()))
 	c.write("{")
 	if len(lit.Elts) > 0 {
@@ -854,11 +855,16 @@ func (c *Compiler) writeAssignStmt(assignStmt *ast.AssignStmt) {
 		return
 	}
 	if assignStmt.Tok == token.DEFINE {
-		if typ, ok := c.types.TypeOf(assignStmt.Rhs[0]).(*types.Basic); ok && typ.Kind() == types.String {
-			c.write("gx::String ")
-		} else {
-			// TODO: Explicit type for GLSL
-			c.write("auto ")
+		typ := c.types.TypeOf(assignStmt.Rhs[0])
+		switch c.target {
+		case CPP:
+			if typ, ok := typ.(*types.Basic); ok && typ.Kind() == types.String {
+				c.write("gx::String ")
+			} else {
+				c.write("auto ")
+			}
+		case GLSL:
+			c.write(c.genTypeExpr(typ, assignStmt.Pos()))
 		}
 	}
 	c.writeExpr(assignStmt.Lhs[0])
