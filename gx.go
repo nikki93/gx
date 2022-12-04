@@ -448,12 +448,6 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 	builder.WriteByte('(')
 	addParam := func(param *types.Var) {
 		typ := param.Type()
-		switch typ.Underlying().(type) {
-		case *types.Array:
-			c.errorf(param.Pos(), "cannot pass array by value, use pointer to array *%s instead", typ)
-		case *types.Slice:
-			c.errorf(param.Pos(), "cannot pass slice by value, use pointer to slice *%s instead", typ)
-		}
 		if _, ok := typ.(*types.Signature); ok {
 			builder.WriteString("auto &&")
 		} else {
