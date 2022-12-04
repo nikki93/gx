@@ -539,7 +539,10 @@ func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 		c.write(lit.Value)
 	case token.FLOAT:
 		c.write(lit.Value)
-		c.write("f")
+		switch c.target {
+		case CPP:
+			c.write("f")
+		}
 	case token.STRING:
 		c.write(lit.Value)
 	case token.CHAR:
@@ -574,9 +577,15 @@ func (c *Compiler) writeFuncLit(lit *ast.FuncLit) {
 }
 
 func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
-	//TODO: GLSL constructors
-	c.write(c.genTypeExpr(c.types.TypeOf(lit), lit.Pos()))
-	c.write("{")
+	useParens := c.target == GLSL
+	typeExpr := (c.genTypeExpr(c.types.TypeOf(lit), lit.Pos()))
+	if useParens {
+		c.write(trimFinalSpace(typeExpr))
+		c.write("(")
+	} else {
+		c.write(typeExpr)
+		c.write("{")
+	}
 	if len(lit.Elts) > 0 {
 		if _, ok := lit.Elts[0].(*ast.KeyValueExpr); ok {
 			if typ, ok := c.types.TypeOf(lit).Underlying().(*types.Struct); ok {
@@ -600,14 +609,18 @@ func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
 			}
 		}
 		if c.fileSet.Position(lit.Pos()).Line == c.fileSet.Position(lit.Elts[0].Pos()).Line {
-			c.write(" ")
+			if !useParens {
+				c.write(" ")
+			}
 			for i, elt := range lit.Elts {
 				if i > 0 {
 					c.write(", ")
 				}
 				c.writeExpr(elt)
 			}
-			c.write(" ")
+			if !useParens {
+				c.write(" ")
+			}
 		} else {
 			c.write("\n")
 			c.indent++
@@ -618,7 +631,11 @@ func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
 			c.indent--
 		}
 	}
-	c.write("}")
+	if useParens {
+		c.write(")")
+	} else {
+		c.write("}")
+	}
 }
 
 func (c *Compiler) writeParenExpr(bin *ast.ParenExpr) {
