@@ -658,8 +658,6 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 	method := false
 	funType := c.types.Types[call.Fun]
 	if _, ok := funType.Type.Underlying().(*types.Signature); ok || funType.IsBuiltin() {
-		// TODO: GLSL entrypoint
-		// TODO: GLSL built-ins and operators
 		// Function or method
 		if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
 			obj := c.types.Uses[sel.Sel]
@@ -694,6 +692,21 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 			var typeArgs *types.TypeList
 			switch fun := call.Fun.(type) {
 			case *ast.Ident: // f(x)
+				switch c.target {
+				case CPP:
+					if fun.Name == "GLSL" {
+						if len(call.Args) == 1 {
+							c.write("gx::GLSL<")
+							c.writeExpr(call.Args[0])
+							c.write(">")
+						} else {
+							c.errorf(call.Lparen, "GLSL must be called with exactly one argument")
+						}
+						return
+					}
+				case GLSL:
+					// TODO: GLSL built-ins and operators
+				}
 				c.writeIdent(fun)
 				typeArgs = c.types.Instances[fun].TypeArgs
 			case *ast.SelectorExpr: // pkg.f(x)
