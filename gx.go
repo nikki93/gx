@@ -696,12 +696,13 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 				case CPP:
 					if fun.Name == "GLSL" {
 						if len(call.Args) == 1 {
-							c.write("gx::GLSL<")
-							c.writeExpr(call.Args[0])
-							c.write(">")
-						} else {
-							c.errorf(call.Lparen, "GLSL must be called with exactly one argument")
+							if ident, ok := call.Args[0].(*ast.Ident); ok {
+								c.write(ident.Name)
+								c.write("_GLSL")
+								return
+							}
 						}
+						c.errorf(call.Lparen, "GLSL must be called with exactly one identifier argument")
 						return
 					}
 				case GLSL:
@@ -1045,6 +1046,7 @@ func (c *Compiler) compile() {
 	c.methodFieldTags = make(map[types.Object]string)
 	c.genTypeExprs = make(map[Target]map[types.Type]string)
 	c.genTypeExprs[CPP] = make(map[types.Type]string)
+	c.genTypeExprs[GLSL] = make(map[types.Type]string)
 	c.genTypeDecls = make(map[*ast.TypeSpec]string)
 	c.genTypeDefns = make(map[*ast.TypeSpec]string)
 	c.genTypeMetas = make(map[*ast.TypeSpec]string)
@@ -1140,15 +1142,17 @@ func (c *Compiler) compile() {
 		}
 	}
 
-	// Collect externs
+	// Collect externs and GLSLs
+	glsls := make(map[types.Object]bool)
 	{
 		externsRe := regexp.MustCompile(`//gx:externs (.*)`)
 		externRe := regexp.MustCompile(`//gx:extern (.*)`)
+		glslRe := regexp.MustCompile(`//gx:glsl`)
 		parseDirective := func(re *regexp.Regexp, doc *ast.CommentGroup) string {
 			if doc != nil {
 				for _, comment := range doc.List {
-					if matches := re.FindStringSubmatch(comment.Text); len(matches) > 1 {
-						return matches[1]
+					if matches := re.FindStringSubmatch(comment.Text); len(matches) > 0 {
+						return matches[len(matches)-1]
 					}
 				}
 			}
@@ -1209,7 +1213,9 @@ func (c *Compiler) compile() {
 							}
 						}
 					case *ast.FuncDecl:
-						if declExt := parseDirective(externRe, decl.Doc); declExt != "" {
+						if parseDirective(glslRe, decl.Doc) != "" {
+							glsls[c.types.Defs[decl.Name]] = true
+						} else if declExt := parseDirective(externRe, decl.Doc); declExt != "" {
 							c.externs[c.types.Defs[decl.Name]] = declExt
 						} else if fileExt != "" {
 							c.externs[c.types.Defs[decl.Name]] = fileExt + decl.Name.String()
@@ -1224,6 +1230,7 @@ func (c *Compiler) compile() {
 	var typeSpecs []*ast.TypeSpec
 	var valueSpecs []*ast.ValueSpec
 	var funcDecls []*ast.FuncDecl
+	var glslDecls []*ast.FuncDecl
 	exports := make(map[types.Object]bool)
 	behaviors := make(map[types.Object]bool)
 	{
@@ -1327,7 +1334,11 @@ func (c *Compiler) compile() {
 						}
 					case *ast.FuncDecl:
 						if _, ok := c.externs[c.types.Defs[decl.Name]]; !ok {
-							funcDecls = append(funcDecls, decl)
+							if _, ok := glsls[c.types.Defs[decl.Name]]; !ok {
+								funcDecls = append(funcDecls, decl)
+							} else {
+								glslDecls = append(glslDecls, decl)
+							}
 						}
 					}
 				}
@@ -1408,6 +1419,20 @@ func (c *Compiler) compile() {
 		for _, funcDecl := range funcDecls {
 			c.write(c.genFuncDecl(funcDecl))
 			c.write(";\n")
+		}
+
+		// GLSL strings
+		c.write("\n\n")
+		c.write("//\n// GLSL\n//\n\n")
+		for _, glslDecl := range glslDecls {
+			c.write("const char *")
+			c.write(glslDecl.Name.Name)
+			c.write("_GLSL = R\"(\n#version 100\nprecision mediump float;\n\n")
+			c.write("void main()")
+			c.target = GLSL
+			c.writeBlockStmt(glslDecl.Body)
+			c.target = CPP
+			c.write("\n)\";\n")
 		}
 
 		// Variables
