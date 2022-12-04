@@ -1445,7 +1445,7 @@ func (c *Compiler) compile() {
 			c.write("const char *")
 			c.write(glslDecl.Name.Name)
 			c.write("_GLSL = R\"(\n#version 100\nprecision mediump float;\n\n")
-			c.write("void main()")
+			c.write("void main() ")
 			c.target = GLSL
 			c.writeBlockStmt(glslDecl.Body)
 			c.target = CPP
