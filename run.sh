@@ -29,10 +29,9 @@ case "$1" in
   # Desktop
   release)
     mkdir -p build
+    rm -rf build/*
 
     $GO build gx.go
-
-    rm -rf build/*.gx.*
 
     $TIME ./gx$EXE ./example build/example
     if [[ -f build/example.gx.cc ]]; then
