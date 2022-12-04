@@ -645,6 +645,16 @@ func (c *Compiler) writeParenExpr(bin *ast.ParenExpr) {
 }
 
 func (c *Compiler) writeSelectorExpr(sel *ast.SelectorExpr) {
+	switch c.target {
+	case GLSL:
+		if ident, ok := sel.X.(*ast.Ident); ok {
+			switch ident.Name {
+			case "attributes", "uniforms", "varyings":
+				c.writeIdent(sel.Sel)
+				return
+			}
+		}
+	}
 	if basic, ok := c.types.TypeOf(sel.X).(*types.Basic); !(ok && basic.Kind() == types.Invalid) {
 		if _, ok := c.types.TypeOf(sel.X).(*types.Pointer); ok {
 			c.write("gx::deref(")
