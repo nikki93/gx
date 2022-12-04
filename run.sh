@@ -35,15 +35,15 @@ case "$1" in
 
     $TIME ./gx$EXE ./example build/example
     if [[ -f build/example.gx.cc ]]; then
-      $CLANG -std=c++20 -Wall -O3 -Iexample -o build/example build/example.gx.cc || true
+      $CLANG -std=c++20 -Wall -O3 -Iexample -o build/example build/example.gx.cc
     fi
     $TIME ./gx$EXE ./example/glsl build/example_glsl
     if [[ -f build/example_glsl.gx.cc ]]; then
-      $CLANG -std=c++20 -Wall -O3 -o build/example_glsl build/example_glsl.gx.cc || true
+      $CLANG -std=c++20 -Wall -O3 -o build/example_glsl build/example_glsl.gx.cc
     fi
 
     if [[ -f build/example ]]; then
-      ./build/example || true
+      ./build/example
     fi
     if [[ -f build/example_glsl ]]; then
       ./build/example_glsl > ./build/example_glsl_output.frag
