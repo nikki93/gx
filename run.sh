@@ -29,17 +29,28 @@ case "$1" in
   # Desktop
   release)
     mkdir -p build
+
     $GO build gx.go
-    rm -rf build/example.gx.*
+
+    rm -rf build/*.gx.*
+
     $TIME ./gx$EXE ./example build/example
-    rm gx$EXE
     if [[ -f build/example.gx.cc ]]; then
-      $CLANG -std=c++20 -Wall -O3 -Iexample -o output build/example.gx.cc || true
+      $CLANG -std=c++20 -Wall -O3 -Iexample -o build/example build/example.gx.cc || true
     fi
-    if [[ -f output ]]; then
-      ./output || true
-      rm output
+    $TIME ./gx$EXE ./example/glsl build/example_glsl
+    if [[ -f build/example_glsl.gx.cc ]]; then
+      $CLANG -std=c++20 -Wall -O3 -o build/example_glsl build/example_glsl.gx.cc || true
     fi
+
+    if [[ -f build/example ]]; then
+      ./build/example || true
+    fi
+    if [[ -f build/example_glsl ]]; then
+      ./build/example_glsl > ./build/example_glsl_output.frag
+      glslangValidator$EXE ./build/example_glsl_output.frag | sed "s/^ERROR: 0/.\/build\/example_glsl_output.frag/g" | sed "/\.frag$/d"
+    fi
+
     exit 1
     ;;
 esac
