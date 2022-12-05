@@ -508,6 +508,10 @@ func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 	switch lit.Kind {
 	case token.INT:
 		c.write(lit.Value)
+		switch c.target {
+		case GLSL:
+			c.write(".0")
+		}
 	case token.FLOAT:
 		c.write(lit.Value)
 		switch c.target {
