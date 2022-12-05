@@ -701,11 +701,9 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 						case 1:
 							c.write("(")
 							c.writeExpr(sel.X)
-							c.write(")")
-							c.write(" ")
+							c.write(") ")
 							c.write(ext)
-							c.write(" ")
-							c.write("(")
+							c.write(" (")
 							c.writeExpr(call.Args[0])
 							c.write(")")
 							return
