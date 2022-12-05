@@ -107,7 +107,12 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 		case types.Bool, types.UntypedBool:
 			builder.WriteString("bool")
 		case types.Int, types.UntypedInt:
-			builder.WriteString("int")
+			switch c.target {
+			case CPP:
+				builder.WriteString("int")
+			case GLSL:
+				builder.WriteString("float")
+			}
 		case types.Float32, types.Float64, types.UntypedFloat:
 			builder.WriteString("float")
 		case types.Byte:
