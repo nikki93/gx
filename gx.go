@@ -648,9 +648,8 @@ func (c *Compiler) writeSelectorExpr(sel *ast.SelectorExpr) {
 	switch c.target {
 	case GLSL:
 		if ident, ok := sel.X.(*ast.Ident); ok {
-			switch ident.Name {
-			case "attributes", "uniforms", "varyings":
-				c.writeIdent(sel.Sel)
+			if glslStorageClass(ident.Name) != "" {
+				c.write(lowerFirst(sel.Sel.Name))
 				return
 			}
 		}
@@ -1062,6 +1061,18 @@ func (c *Compiler) writeStmtList(list []ast.Stmt) {
 }
 
 //
+// GLSL
+//
+
+func glslStorageClass(name string) string {
+	switch name {
+	case "attributes", "uniforms", "varyings":
+		return name[0 : len(name)-1]
+	}
+	return ""
+}
+
+//
 // Top-level
 //
 
@@ -1455,9 +1466,33 @@ func (c *Compiler) compile() {
 			c.write("const char *")
 			c.write(glslDecl.Name.Name)
 			c.write("_GLSL = R\"(\n#version 100\nprecision mediump float;\n\n")
-			c.write("void main() ")
 			c.target = GLSL
+
+			obj := c.types.Defs[glslDecl.Name]
+			sig := obj.Type().(*types.Signature)
+			for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
+				param := sig.Params().At(i)
+				if storageClass := glslStorageClass(param.Name()); storageClass != "" {
+					if structType, ok := param.Type().Underlying().(*types.Struct); ok {
+						numFields := structType.NumFields()
+						for fieldIndex := 0; fieldIndex < numFields; fieldIndex++ {
+							field := structType.Field(fieldIndex)
+							c.write(storageClass)
+							c.write(" ")
+							c.write(c.genTypeExpr(field.Type(), field.Pos()))
+							c.write(lowerFirst(field.Name()))
+							c.write(";\n")
+						}
+						if numFields > 0 {
+							c.write("\n")
+						}
+					}
+				}
+			}
+
+			c.write("void main() ")
 			c.writeBlockStmt(glslDecl.Body)
+
 			c.target = CPP
 			c.write("\n)\";\n")
 		}
