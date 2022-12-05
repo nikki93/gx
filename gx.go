@@ -1187,8 +1187,8 @@ func (c *Compiler) compile() {
 	{
 		externsRe := regexp.MustCompile(`//gx:externs (.*)`)
 		externRe := regexp.MustCompile(`//gx:extern (.*)`)
-		glslEntrypointRe := regexp.MustCompile(`//gx:glsl:entry`)
-		glslExternRe := regexp.MustCompile(`//gx:glsl:extern (.*)`)
+		glslEntrypointRe := regexp.MustCompile(`//gxsl:entry`)
+		glslExternRe := regexp.MustCompile(`//gxsl:extern (.*)`)
 		parseDirective := func(re *regexp.Regexp, doc *ast.CommentGroup) string {
 			if doc != nil {
 				for _, comment := range doc.List {
