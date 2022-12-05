@@ -11,10 +11,12 @@ func GLSL(shaderFunc interface{}) (result string) { return }
 // Built-ins
 //
 
+//gx:glsl:extern vec2
 type Vec2 struct {
 	X, Y float64
 }
 
+//gx:glsl:extern vec4
 type Vec4 struct {
 	X, Y, Z, W float64
 }
@@ -31,6 +33,7 @@ func (v Vec4) Scale(f float64) Vec4
 //gx:glsl:extern dot
 func (v Vec4) DotProduct(u Vec4) float64
 
+//gx:glsl:extern sampler2D
 type Sampler2D struct{}
 
 //gx:glsl:extern texture2D

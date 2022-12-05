@@ -101,90 +101,61 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 	}
 
 	builder := &strings.Builder{}
-	switch c.target {
-	case CPP:
-		switch typ := typ.(type) {
-		case *types.Basic:
-			switch typ.Kind() {
-			case types.Bool, types.UntypedBool:
-				builder.WriteString("bool")
-			case types.Int, types.UntypedInt:
-				builder.WriteString("int")
-			case types.Float32, types.Float64, types.UntypedFloat:
-				builder.WriteString("float")
-			case types.Byte:
-				builder.WriteString("std::uint8_t")
-			case types.String:
-				builder.WriteString("gx::String")
-			default:
-				c.errorf(pos, "%s not supported", typ.String())
-			}
-			builder.WriteByte(' ')
-		case *types.Pointer:
-			builder.WriteString(c.genTypeExpr(typ.Elem(), pos))
-			builder.WriteByte('*')
-		case *types.Named:
-			name := typ.Obj()
-			if ext, ok := c.externs[c.target][name]; ok {
-				builder.WriteString(ext)
-			} else {
-				builder.WriteString(name.Name())
-			}
-			if typeArgs := typ.TypeArgs(); typeArgs != nil {
-				builder.WriteString("<")
-				for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
-					if i > 0 {
-						builder.WriteString(", ")
-					}
-					builder.WriteString(trimFinalSpace(c.genTypeExpr(typeArgs.At(i), pos)))
-				}
-				builder.WriteString(">")
-			}
-			builder.WriteByte(' ')
-		case *types.TypeParam:
-			builder.WriteString(typ.Obj().Name())
-			builder.WriteByte(' ')
-		case *types.Array:
-			builder.WriteString("gx::Array<")
-			builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
-			builder.WriteString(", ")
-			builder.WriteString(strconv.FormatInt(typ.Len(), 10))
-			builder.WriteString(">")
-			builder.WriteByte(' ')
-		case *types.Slice:
-			builder.WriteString("gx::Slice<")
-			builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
-			builder.WriteString(">")
-			builder.WriteByte(' ')
+	switch typ := typ.(type) {
+	case *types.Basic:
+		switch typ.Kind() {
+		case types.Bool, types.UntypedBool:
+			builder.WriteString("bool")
+		case types.Int, types.UntypedInt:
+			builder.WriteString("int")
+		case types.Float32, types.Float64, types.UntypedFloat:
+			builder.WriteString("float")
+		case types.Byte:
+			builder.WriteString("std::uint8_t")
+		case types.String:
+			builder.WriteString("gx::String")
 		default:
 			c.errorf(pos, "%s not supported", typ.String())
 		}
-	case GLSL:
-		switch typ := typ.(type) {
-		case *types.Basic:
-			switch typ.Kind() {
-			case types.Bool, types.UntypedBool:
-				builder.WriteString("bool")
-			case types.Int, types.UntypedInt:
-				builder.WriteString("int")
-			case types.Float32, types.Float64, types.UntypedFloat:
-				builder.WriteString("float")
-			default:
-				c.errorf(pos, "%s not supported in glsl", typ.String())
-			}
-			builder.WriteByte(' ')
-		case *types.Named:
-			name := typ.Obj()
-			switch name.Name() {
-			case "Vec2", "Vec3", "Vec4", "Mat2", "Mat3", "Mat4", "Sampler2D":
-				builder.WriteString(lowerFirst(name.Name()))
-			default:
-				c.errorf(pos, "%s not supported in glsl", typ.String())
-			}
-			builder.WriteByte(' ')
-		default:
-			c.errorf(pos, "%s not supported in glsl", typ.String())
+		builder.WriteByte(' ')
+	case *types.Pointer:
+		builder.WriteString(c.genTypeExpr(typ.Elem(), pos))
+		builder.WriteByte('*')
+	case *types.Named:
+		name := typ.Obj()
+		if ext, ok := c.externs[c.target][name]; ok {
+			builder.WriteString(ext)
+		} else {
+			builder.WriteString(name.Name())
 		}
+		if typeArgs := typ.TypeArgs(); typeArgs != nil {
+			builder.WriteString("<")
+			for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
+				if i > 0 {
+					builder.WriteString(", ")
+				}
+				builder.WriteString(trimFinalSpace(c.genTypeExpr(typeArgs.At(i), pos)))
+			}
+			builder.WriteString(">")
+		}
+		builder.WriteByte(' ')
+	case *types.TypeParam:
+		builder.WriteString(typ.Obj().Name())
+		builder.WriteByte(' ')
+	case *types.Array:
+		builder.WriteString("gx::Array<")
+		builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
+		builder.WriteString(", ")
+		builder.WriteString(strconv.FormatInt(typ.Len(), 10))
+		builder.WriteString(">")
+		builder.WriteByte(' ')
+	case *types.Slice:
+		builder.WriteString("gx::Slice<")
+		builder.WriteString(trimFinalSpace(c.genTypeExpr(typ.Elem(), pos)))
+		builder.WriteString(">")
+		builder.WriteByte(' ')
+	default:
+		c.errorf(pos, "%s not supported", typ.String())
 	}
 
 	result := builder.String()
@@ -1260,6 +1231,18 @@ func (c *Compiler) compile() {
 										}
 									}
 								}
+								if glslExt := parseDirective(glslExternRe, decl.Doc); glslExt != "" {
+									c.externs[GLSL][c.types.Defs[spec.Name]] = glslExt
+									if typ, ok := spec.Type.(*ast.StructType); ok {
+										for _, field := range typ.Fields.List {
+											for _, fieldName := range field.Names {
+												if unicode.IsUpper(rune(fieldName.String()[0])) {
+													c.externs[GLSL][c.types.Defs[fieldName]] = lowerFirst(fieldName.String())
+												}
+											}
+										}
+									}
+								}
 							case *ast.ValueSpec:
 								specExt := parseDirective(externRe, spec.Doc)
 								for _, name := range spec.Names {
@@ -1281,8 +1264,8 @@ func (c *Compiler) compile() {
 						} else if fileExt != "" {
 							c.externs[CPP][c.types.Defs[decl.Name]] = fileExt + decl.Name.String()
 						}
-						if glslDeclExt := parseDirective(glslExternRe, decl.Doc); glslDeclExt != "" {
-							c.externs[GLSL][c.types.Defs[decl.Name]] = glslDeclExt
+						if glslExt := parseDirective(glslExternRe, decl.Doc); glslExt != "" {
+							c.externs[GLSL][c.types.Defs[decl.Name]] = glslExt
 						}
 					}
 				}
