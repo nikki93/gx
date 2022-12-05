@@ -36,7 +36,7 @@ type Compiler struct {
 
 	target Target
 
-	externs         map[types.Object]string
+	externs         map[Target]map[types.Object]string
 	fieldIndices    map[*types.Var]int
 	methodRenames   map[types.Object]string
 	methodFieldTags map[types.Object]string
@@ -125,7 +125,7 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 			builder.WriteByte('*')
 		case *types.Named:
 			name := typ.Obj()
-			if ext, ok := c.externs[name]; ok {
+			if ext, ok := c.externs[c.target][name]; ok {
 				builder.WriteString(ext)
 			} else {
 				builder.WriteString(name.Name())
@@ -526,7 +526,7 @@ func (c *Compiler) writeIdent(ident *ast.Ident) {
 	if typ.IsBuiltin() {
 		c.write("gx::")
 	}
-	if ext, ok := c.externs[c.types.Uses[ident]]; ok {
+	if ext, ok := c.externs[c.target][c.types.Uses[ident]]; ok {
 		c.write(ext)
 	} else {
 		c.write(ident.Name) // TODO: Package namespace
@@ -688,6 +688,31 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 		if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
 			obj := c.types.Uses[sel.Sel]
 			if sig, ok := obj.Type().(*types.Signature); ok && sig.Recv() != nil {
+				switch c.target {
+				case GLSL:
+					if ext, ok := c.externs[GLSL][c.types.Uses[sel.Sel]]; ok && !unicode.IsLetter(rune(ext[0])) {
+						switch len(call.Args) {
+						case 0:
+							c.write(ext)
+							c.write("(")
+							c.writeExpr(sel.X)
+							c.write(")")
+							return
+						case 1:
+							c.write("(")
+							c.writeExpr(sel.X)
+							c.write(")")
+							c.write(" ")
+							c.write(ext)
+							c.write(" ")
+							c.write("(")
+							c.writeExpr(call.Args[0])
+							c.write(")")
+							return
+						}
+						c.errorf(call.Fun.Pos(), "GLSL operators must be unary or binary")
+					}
+				}
 				method = true
 				if rename, ok := c.methodRenames[obj]; ok {
 					c.write(rename)
@@ -717,7 +742,7 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 		if !method {
 			var typeArgs *types.TypeList
 			switch fun := call.Fun.(type) {
-			case *ast.Ident: // f(x)
+			case *ast.Ident: // f(...)
 				switch c.target {
 				case CPP:
 					if fun.Name == "GLSL" {
@@ -729,22 +754,19 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 							}
 						}
 						c.errorf(call.Lparen, "GLSL must be called with exactly one identifier argument")
-						return
 					}
-				case GLSL:
-					// TODO: GLSL built-ins and operators
 				}
 				c.writeIdent(fun)
 				typeArgs = c.types.Instances[fun].TypeArgs
-			case *ast.SelectorExpr: // pkg.f(x)
+			case *ast.SelectorExpr: // pkg.f(...)
 				c.writeIdent(fun.Sel)
 				typeArgs = c.types.Instances[fun.Sel].TypeArgs
 			case *ast.IndexExpr:
 				switch fun := fun.X.(type) {
-				case *ast.Ident: // f[T](x)
+				case *ast.Ident: // f[T](...)
 					c.writeIdent(fun)
 					typeArgs = c.types.Instances[fun].TypeArgs
-				case *ast.SelectorExpr: // pkg.f[T](x)
+				case *ast.SelectorExpr: // pkg.f[T](...)
 					c.writeIdent(fun.Sel)
 					typeArgs = c.types.Instances[fun.Sel].TypeArgs
 				}
@@ -1078,7 +1100,9 @@ func glslStorageClass(name string) string {
 
 func (c *Compiler) compile() {
 	// Initialize maps
-	c.externs = make(map[types.Object]string)
+	c.externs = make(map[Target]map[types.Object]string)
+	c.externs[CPP] = make(map[types.Object]string)
+	c.externs[GLSL] = make(map[types.Object]string)
 	c.fieldIndices = make(map[*types.Var]int)
 	c.methodRenames = make(map[types.Object]string)
 	c.methodFieldTags = make(map[types.Object]string)
@@ -1180,12 +1204,13 @@ func (c *Compiler) compile() {
 		}
 	}
 
-	// Collect externs and GLSLs
-	glsls := make(map[types.Object]bool)
+	// Collect externs and GLSL entrypoints
+	glslEntrypoints := make(map[types.Object]bool)
 	{
 		externsRe := regexp.MustCompile(`//gx:externs (.*)`)
 		externRe := regexp.MustCompile(`//gx:extern (.*)`)
-		glslRe := regexp.MustCompile(`//gx:glsl`)
+		glslEntrypointRe := regexp.MustCompile(`//gx:glsl:entry`)
+		glslExternRe := regexp.MustCompile(`//gx:glsl:extern (.*)`)
 		parseDirective := func(re *regexp.Regexp, doc *ast.CommentGroup) string {
 			if doc != nil {
 				for _, comment := range doc.List {
@@ -1211,13 +1236,13 @@ func (c *Compiler) compile() {
 							case *ast.TypeSpec:
 								extern := false
 								if specExt := parseDirective(externRe, spec.Doc); specExt != "" {
-									c.externs[c.types.Defs[spec.Name]] = specExt
+									c.externs[CPP][c.types.Defs[spec.Name]] = specExt
 									extern = true
 								} else if declExt != "" {
-									c.externs[c.types.Defs[spec.Name]] = declExt
+									c.externs[CPP][c.types.Defs[spec.Name]] = declExt
 									extern = true
 								} else if fileExt != "" {
-									c.externs[c.types.Defs[spec.Name]] = fileExt + spec.Name.String()
+									c.externs[CPP][c.types.Defs[spec.Name]] = fileExt + spec.Name.String()
 									extern = true
 								}
 								if extern {
@@ -1229,9 +1254,9 @@ func (c *Compiler) compile() {
 											}
 											for _, fieldName := range field.Names {
 												if fieldExt != "" {
-													c.externs[c.types.Defs[fieldName]] = fieldExt
+													c.externs[CPP][c.types.Defs[fieldName]] = fieldExt
 												} else if unicode.IsUpper(rune(fieldName.String()[0])) {
-													c.externs[c.types.Defs[fieldName]] = lowerFirst(fieldName.String())
+													c.externs[CPP][c.types.Defs[fieldName]] = lowerFirst(fieldName.String())
 												}
 											}
 										}
@@ -1241,22 +1266,25 @@ func (c *Compiler) compile() {
 								specExt := parseDirective(externRe, spec.Doc)
 								for _, name := range spec.Names {
 									if specExt != "" {
-										c.externs[c.types.Defs[name]] = specExt
+										c.externs[CPP][c.types.Defs[name]] = specExt
 									} else if declExt != "" {
-										c.externs[c.types.Defs[name]] = declExt
+										c.externs[CPP][c.types.Defs[name]] = declExt
 									} else if fileExt != "" {
-										c.externs[c.types.Defs[name]] = fileExt + name.String()
+										c.externs[CPP][c.types.Defs[name]] = fileExt + name.String()
 									}
 								}
 							}
 						}
 					case *ast.FuncDecl:
-						if parseDirective(glslRe, decl.Doc) != "" {
-							glsls[c.types.Defs[decl.Name]] = true
+						if parseDirective(glslEntrypointRe, decl.Doc) != "" {
+							glslEntrypoints[c.types.Defs[decl.Name]] = true
 						} else if declExt := parseDirective(externRe, decl.Doc); declExt != "" {
-							c.externs[c.types.Defs[decl.Name]] = declExt
+							c.externs[CPP][c.types.Defs[decl.Name]] = declExt
 						} else if fileExt != "" {
-							c.externs[c.types.Defs[decl.Name]] = fileExt + decl.Name.String()
+							c.externs[CPP][c.types.Defs[decl.Name]] = fileExt + decl.Name.String()
+						}
+						if glslDeclExt := parseDirective(glslExternRe, decl.Doc); glslDeclExt != "" {
+							c.externs[GLSL][c.types.Defs[decl.Name]] = glslDeclExt
 						}
 					}
 				}
@@ -1305,7 +1333,7 @@ func (c *Compiler) compile() {
 							case *ast.TypeSpec:
 								var visitTypeSpec func(typeSpec *ast.TypeSpec, export bool)
 								visitTypeSpec = func(typeSpec *ast.TypeSpec, export bool) {
-									if _, ok := c.externs[c.types.Defs[typeSpec.Name]]; ok {
+									if _, ok := c.externs[CPP][c.types.Defs[typeSpec.Name]]; ok {
 										return
 									}
 									obj := c.types.Defs[typeSpec.Name]
@@ -1359,7 +1387,7 @@ func (c *Compiler) compile() {
 									})
 									extern := false
 									for _, name := range spec.Names {
-										if _, ok := c.externs[c.types.Defs[name]]; ok {
+										if _, ok := c.externs[CPP][c.types.Defs[name]]; ok {
 											extern = true
 										}
 									}
@@ -1371,8 +1399,8 @@ func (c *Compiler) compile() {
 							}
 						}
 					case *ast.FuncDecl:
-						if _, ok := c.externs[c.types.Defs[decl.Name]]; !ok {
-							if _, ok := glsls[c.types.Defs[decl.Name]]; !ok {
+						if _, ok := c.externs[CPP][c.types.Defs[decl.Name]]; !ok {
+							if _, ok := glslEntrypoints[c.types.Defs[decl.Name]]; !ok {
 								funcDecls = append(funcDecls, decl)
 							} else {
 								glslDecls = append(glslDecls, decl)
