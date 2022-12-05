@@ -21,6 +21,9 @@ type Vec4 struct {
 	X, Y, Z, W float64
 }
 
+//gxsl:extern +
+func (v Vec4) Add(u Vec4) Vec4
+
 //gxsl:extern -
 func (v Vec4) Negate() Vec4
 
@@ -55,6 +58,21 @@ type RedTextureParams struct {
 	Texture0   Sampler2D
 }
 
+//gx:extern INVALID
+func scaleByFive(vec Vec4) Vec4 {
+	return scaleByNum(vec, 3).Add(scaleByTwo(vec))
+}
+
+//gx:extern INVALID
+func scaleByTwo(vec Vec4) Vec4 {
+	return scaleByNum(vec, 2)
+}
+
+//gx:extern INVALID
+func scaleByNum(vec Vec4, num float64) Vec4 {
+	return vec.Scale(num)
+}
+
 //gxsl:entry
 func redTextureShader(uniforms RedTextureParams, varyings Varyings) {
 	result := Vec4{-1, -0.2, -0.2, -1}.Negate()
@@ -66,7 +84,7 @@ func redTextureShader(uniforms RedTextureParams, varyings Varyings) {
 
 	result = result.Multiply(varyings.FragColor)
 
-	result = result.Scale(result.DotProduct(Vec4{1, 0, 0, 1}))
+	result = scaleByFive(result.Scale(result.DotProduct(Vec4{1, 0, 0, 1})))
 
 	gl_FragColor = result
 }

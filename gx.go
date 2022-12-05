@@ -1286,12 +1286,13 @@ func (c *Compiler) compile() {
 	var typeSpecs []*ast.TypeSpec
 	var valueSpecs []*ast.ValueSpec
 	var funcDecls []*ast.FuncDecl
-	var glslDecls []*ast.FuncDecl
+	var glslEntrypointDecls []*ast.FuncDecl
 	exports := make(map[types.Object]bool)
 	behaviors := make(map[types.Object]bool)
+	objTypeSpecs := make(map[types.Object]*ast.TypeSpec)
+	objValueSpecs := make(map[types.Object]*ast.ValueSpec)
+	objFuncDecls := make(map[types.Object]*ast.FuncDecl)
 	{
-		objTypeSpecs := make(map[types.Object]*ast.TypeSpec)
-		objValueSpecs := make(map[types.Object]*ast.ValueSpec)
 		for _, pkg := range pkgs {
 			for _, file := range pkg.Syntax {
 				for _, decl := range file.Decls {
@@ -1307,6 +1308,8 @@ func (c *Compiler) compile() {
 								}
 							}
 						}
+					case *ast.FuncDecl:
+						objFuncDecls[c.types.Defs[decl.Name]] = decl
 					}
 				}
 			}
@@ -1393,7 +1396,7 @@ func (c *Compiler) compile() {
 							if _, ok := glslEntrypoints[c.types.Defs[decl.Name]]; !ok {
 								funcDecls = append(funcDecls, decl)
 							} else {
-								glslDecls = append(glslDecls, decl)
+								glslEntrypointDecls = append(glslEntrypointDecls, decl)
 							}
 						}
 					}
@@ -1480,13 +1483,14 @@ func (c *Compiler) compile() {
 		// GLSL strings
 		c.write("\n\n")
 		c.write("//\n// GLSL\n//\n\n")
-		for _, glslDecl := range glslDecls {
+		for _, glslEntrypointDecl := range glslEntrypointDecls {
 			c.write("const char *")
-			c.write(glslDecl.Name.Name)
+			c.write(glslEntrypointDecl.Name.Name)
 			c.write("_GLSL = R\"(\n#version 100\nprecision mediump float;\n\n")
 			c.target = GLSL
 
-			obj := c.types.Defs[glslDecl.Name]
+			// Storage class variables
+			obj := c.types.Defs[glslEntrypointDecl.Name]
 			sig := obj.Type().(*types.Signature)
 			for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
 				param := sig.Params().At(i)
@@ -1508,8 +1512,46 @@ func (c *Compiler) compile() {
 				}
 			}
 
+			// Collect dependencies
+			visited := make(map[ast.Node]bool)
+			var funcDeclDeps []*ast.FuncDecl
+			var visitFuncDeclDeps func(funcDecl *ast.FuncDecl)
+			visitFuncDeclDeps = func(funcDecl *ast.FuncDecl) {
+				if visited[funcDecl] {
+					return
+				}
+				if _, ok := c.externs[GLSL][c.types.Defs[funcDecl.Name]]; ok {
+					return
+				}
+				if funcDecl.Body == nil {
+					return
+				}
+				visited[funcDecl] = true
+				ast.Inspect(funcDecl, func(node ast.Node) bool {
+					if ident, ok := node.(*ast.Ident); ok {
+						if funcDecl, ok := objFuncDecls[c.types.Uses[ident]]; ok {
+							visitFuncDeclDeps(funcDecl)
+						}
+					}
+					return true
+				})
+				if funcDecl != glslEntrypointDecl {
+					funcDeclDeps = append(funcDeclDeps, funcDecl)
+				}
+			}
+			visitFuncDeclDeps(glslEntrypointDecl)
+
+			// Function dependencies
+			for _, funcDeclDep := range funcDeclDeps {
+				c.write(c.genFuncDecl(funcDeclDep))
+				c.write(" ")
+				c.writeBlockStmt(funcDeclDep.Body)
+				c.write("\n\n")
+			}
+
+			// Main function
 			c.write("void main() ")
-			c.writeBlockStmt(glslDecl.Body)
+			c.writeBlockStmt(glslEntrypointDecl.Body)
 
 			c.target = CPP
 			c.write("\n)\";\n")
