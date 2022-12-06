@@ -1254,6 +1254,9 @@ func (c *Compiler) compile() {
 									} else if fileExt != "" {
 										c.externs[CPP][c.types.Defs[name]] = fileExt + name.String()
 									}
+									if gxslExt := parseDirective(gxslExternRe, decl.Doc); gxslExt != "" {
+										c.externs[GLSL][c.types.Defs[name]] = gxslExt
+									}
 								}
 							}
 						}
@@ -1615,7 +1618,29 @@ func (c *Compiler) compile() {
 
 			// Collect dependencies
 			visited := make(map[ast.Node]bool)
+			var valueSpecDeps []*ast.ValueSpec
 			var funcDeclDeps []*ast.FuncDecl
+			var visitValueSpecDeps func(valueSpec *ast.ValueSpec)
+			visitValueSpecDeps = func(valueSpec *ast.ValueSpec) {
+				if visited[valueSpec] {
+					return
+				}
+				visited[valueSpec] = true
+				ast.Inspect(valueSpec, func(node ast.Node) bool {
+					if ident, ok := node.(*ast.Ident); ok {
+						if valueSpec, ok := objValueSpecs[c.types.Uses[ident]]; ok {
+							visitValueSpecDeps(valueSpec)
+						}
+					}
+					return true
+				})
+				for _, name := range valueSpec.Names {
+					if _, ok := c.externs[GLSL][c.types.Defs[name]]; ok {
+						return
+					}
+				}
+				valueSpecDeps = append(valueSpecDeps, valueSpec)
+			}
 			var visitFuncDeclDeps func(funcDecl *ast.FuncDecl)
 			visitFuncDeclDeps = func(funcDecl *ast.FuncDecl) {
 				if visited[funcDecl] {
@@ -1633,6 +1658,9 @@ func (c *Compiler) compile() {
 						if funcDecl, ok := objFuncDecls[c.types.Uses[ident]]; ok {
 							visitFuncDeclDeps(funcDecl)
 						}
+						if valueSpec, ok := objValueSpecs[c.types.Uses[ident]]; ok {
+							visitValueSpecDeps(valueSpec)
+						}
 					}
 					return true
 				})
@@ -1642,11 +1670,28 @@ func (c *Compiler) compile() {
 			}
 			visitFuncDeclDeps(gxslShaderDecl)
 
-			// Function dependencies
-			for _, funcDeclDep := range funcDeclDeps {
-				c.write(c.genFuncDecl(funcDeclDep))
+			// Variables
+			for _, valueSpec := range valueSpecDeps {
+				for i, name := range valueSpec.Names {
+					c.write("const ")
+					c.write(c.genTypeExpr(c.types.TypeOf(valueSpec.Names[i]), valueSpec.Pos()))
+					c.writeIdent(name)
+					if len(valueSpec.Values) > 0 {
+						c.write(" = ")
+						c.writeExpr(valueSpec.Values[i])
+					}
+					c.write(";\n")
+				}
+			}
+			if len(valueSpecDeps) > 0 {
+				c.write("\n")
+			}
+
+			// Functions
+			for _, funcDecl := range funcDeclDeps {
+				c.write(c.genFuncDecl(funcDecl))
 				c.write(" ")
-				c.writeBlockStmt(funcDeclDep.Body)
+				c.writeBlockStmt(funcDecl.Body)
 				c.write("\n\n")
 			}
 

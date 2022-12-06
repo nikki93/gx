@@ -35,6 +35,7 @@ type Sampler2D struct{}
 //gxsl:extern texture2D
 func Texture2D(sampler Sampler2D, coord Vec2) Vec4
 
+//gxsl:extern gl_FragColor
 var gl_FragColor Vec4
 
 //
@@ -66,9 +67,12 @@ func scaleByNum(vec Vec4, num float64) Vec4 {
 	return vec.Scale(num)
 }
 
+//gx:extern INVALID
+var red = Vec4{-1, -0.2, -0.2, -1}.Negate()
+
 //gxsl:shader
 func redTextureShader(uniforms RedTextureParams, varyings Varyings) {
-	result := Vec4{-1, -0.2, -0.2, -1}.Negate()
+	result := red
 
 	texelColor := Texture2D(uniforms.Texture0, varyings.FragTexCoord)
 	result = result.Multiply(texelColor)
