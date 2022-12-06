@@ -21,7 +21,7 @@ func (p Person) Health() int
 
 func (p *Person) Grow()
 
-//gx:extern person::INVALID
+//gx:extern INVALID
 type AgeAdder func(i int) int
 
 func (p *Person) GetAgeAdder() AgeAdder
