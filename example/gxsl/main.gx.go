@@ -77,6 +77,11 @@ type FloatPair struct {
 }
 
 //gx:extern INVALID
+func (pair FloatPair) Sum() float64 {
+	return pair.A + pair.B
+}
+
+//gx:extern INVALID
 type FloatTriple struct {
 	A, B, C float64
 }
@@ -98,7 +103,7 @@ func redTextureShader(uniforms RedTextureParams, varyings Varyings) {
 	result = scaleByFive(result.Scale(result.DotProduct(Vec4{1, 0, 0, 1})))
 
 	floatPair := FloatPair{2, 3}
-	result = result.Scale(floatPair.B)
+	result = result.Scale(floatPair.Sum())
 
 	gl_FragColor = result
 }
