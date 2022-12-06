@@ -1184,13 +1184,13 @@ func (c *Compiler) compile() {
 		}
 	}
 
-	// Collect externs and GLSL entrypoints
-	glslEntrypoints := make(map[types.Object]bool)
+	// Collect externs and GXSL entrypoints
+	gxslEntrypoints := make(map[types.Object]bool)
 	{
 		externsRe := regexp.MustCompile(`//gx:externs (.*)`)
 		externRe := regexp.MustCompile(`//gx:extern (.*)`)
-		glslEntrypointRe := regexp.MustCompile(`//gxsl:entry`)
-		glslExternRe := regexp.MustCompile(`//gxsl:extern (.*)`)
+		gxslEntrypointRe := regexp.MustCompile(`//gxsl:entry`)
+		gxslExternRe := regexp.MustCompile(`//gxsl:extern (.*)`)
 		parseDirective := func(re *regexp.Regexp, doc *ast.CommentGroup) string {
 			if doc != nil {
 				for _, comment := range doc.List {
@@ -1242,8 +1242,8 @@ func (c *Compiler) compile() {
 										}
 									}
 								}
-								if glslExt := parseDirective(glslExternRe, decl.Doc); glslExt != "" {
-									c.externs[GLSL][c.types.Defs[spec.Name]] = glslExt
+								if gxslExt := parseDirective(gxslExternRe, decl.Doc); gxslExt != "" {
+									c.externs[GLSL][c.types.Defs[spec.Name]] = gxslExt
 									if typ, ok := spec.Type.(*ast.StructType); ok {
 										for _, field := range typ.Fields.List {
 											for _, fieldName := range field.Names {
@@ -1268,15 +1268,15 @@ func (c *Compiler) compile() {
 							}
 						}
 					case *ast.FuncDecl:
-						if parseDirective(glslEntrypointRe, decl.Doc) != "" {
-							glslEntrypoints[c.types.Defs[decl.Name]] = true
+						if parseDirective(gxslEntrypointRe, decl.Doc) != "" {
+							gxslEntrypoints[c.types.Defs[decl.Name]] = true
 						} else if declExt := parseDirective(externRe, decl.Doc); declExt != "" {
 							c.externs[CPP][c.types.Defs[decl.Name]] = declExt
 						} else if fileExt != "" {
 							c.externs[CPP][c.types.Defs[decl.Name]] = fileExt + decl.Name.String()
 						}
-						if glslExt := parseDirective(glslExternRe, decl.Doc); glslExt != "" {
-							c.externs[GLSL][c.types.Defs[decl.Name]] = glslExt
+						if gxslExt := parseDirective(gxslExternRe, decl.Doc); gxslExt != "" {
+							c.externs[GLSL][c.types.Defs[decl.Name]] = gxslExt
 						}
 					}
 				}
@@ -1288,7 +1288,7 @@ func (c *Compiler) compile() {
 	var typeSpecs []*ast.TypeSpec
 	var valueSpecs []*ast.ValueSpec
 	var funcDecls []*ast.FuncDecl
-	var glslEntrypointDecls []*ast.FuncDecl
+	var gxslEntrypointDecls []*ast.FuncDecl
 	exports := make(map[types.Object]bool)
 	behaviors := make(map[types.Object]bool)
 	objTypeSpecs := make(map[types.Object]*ast.TypeSpec)
@@ -1395,10 +1395,10 @@ func (c *Compiler) compile() {
 						}
 					case *ast.FuncDecl:
 						if _, ok := c.externs[CPP][c.types.Defs[decl.Name]]; !ok {
-							if _, ok := glslEntrypoints[c.types.Defs[decl.Name]]; !ok {
+							if _, ok := gxslEntrypoints[c.types.Defs[decl.Name]]; !ok {
 								funcDecls = append(funcDecls, decl)
 							} else {
-								glslEntrypointDecls = append(glslEntrypointDecls, decl)
+								gxslEntrypointDecls = append(gxslEntrypointDecls, decl)
 							}
 						}
 					}
@@ -1485,14 +1485,14 @@ func (c *Compiler) compile() {
 		// GLSL strings
 		c.write("\n\n")
 		c.write("//\n// GLSL\n//\n\n")
-		for _, glslEntrypointDecl := range glslEntrypointDecls {
+		for _, gxslEntrypointDecl := range gxslEntrypointDecls {
 			c.write("const char *")
-			c.write(glslEntrypointDecl.Name.Name)
+			c.write(gxslEntrypointDecl.Name.Name)
 			c.write("_GLSL = R\"(\n#version 100\nprecision mediump float;\n\n")
 			c.target = GLSL
 
 			// Storage class variables
-			obj := c.types.Defs[glslEntrypointDecl.Name]
+			obj := c.types.Defs[gxslEntrypointDecl.Name]
 			sig := obj.Type().(*types.Signature)
 			for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
 				param := sig.Params().At(i)
@@ -1537,11 +1537,11 @@ func (c *Compiler) compile() {
 					}
 					return true
 				})
-				if funcDecl != glslEntrypointDecl {
+				if funcDecl != gxslEntrypointDecl {
 					funcDeclDeps = append(funcDeclDeps, funcDecl)
 				}
 			}
-			visitFuncDeclDeps(glslEntrypointDecl)
+			visitFuncDeclDeps(gxslEntrypointDecl)
 
 			// Function dependencies
 			for _, funcDeclDep := range funcDeclDeps {
@@ -1553,7 +1553,7 @@ func (c *Compiler) compile() {
 
 			// Main function
 			c.write("void main() ")
-			c.writeBlockStmt(glslEntrypointDecl.Body)
+			c.writeBlockStmt(gxslEntrypointDecl.Body)
 
 			c.target = CPP
 			c.write("\n)\";\n")

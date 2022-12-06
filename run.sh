@@ -35,19 +35,19 @@ case "$1" in
 
     $TIME ./gx$EXE ./example build/example
     if [[ -f build/example.gx.cc ]]; then
-      $CLANG -std=c++20 -Wall -O3 -Iexample -o build/example build/example.gx.cc
+      $CLANG -std=c++20 -Wall -O3 -Iexample -o build/example build/example.*.cc
     fi
-    $TIME ./gx$EXE ./example/glsl build/example_glsl
-    if [[ -f build/example_glsl.gx.cc ]]; then
-      $CLANG -std=c++20 -Wall -O3 -o build/example_glsl build/example_glsl.gx.cc
+    $TIME ./gx$EXE ./example/gxsl build/example_gxsl
+    if [[ -f build/example_gxsl.gx.cc ]]; then
+      $CLANG -std=c++20 -Wall -O3 -o build/example_gxsl build/example_gxsl.*.cc
     fi
 
     if [[ -f build/example ]]; then
       ./build/example
     fi
-    if [[ -f build/example_glsl ]]; then
-      ./build/example_glsl > ./build/example_glsl_output.frag
-      glslangValidator$EXE ./build/example_glsl_output.frag | sed "s/^ERROR: 0/.\/build\/example_glsl_output.frag/g" | sed "/\.frag$/d"
+    if [[ -f build/example_gxsl ]]; then
+      ./build/example_gxsl > ./build/example_gxsl_output.frag
+      glslangValidator$EXE ./build/example_gxsl_output.frag | sed "s/^ERROR: 0/.\/build\/example_gxsl_output.frag/g" | sed "/\.frag$/d"
     fi
 
     exit 1
