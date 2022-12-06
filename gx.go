@@ -44,7 +44,7 @@ type Compiler struct {
 	genTypeDecls    map[*ast.TypeSpec]string
 	genTypeDefns    map[*ast.TypeSpec]string
 	genTypeMetas    map[*ast.TypeSpec]string
-	genFuncDecls    map[*ast.FuncDecl]string
+	genFuncDecls    map[Target]map[*ast.FuncDecl]string
 
 	indent     int
 	errors     *strings.Builder
@@ -364,7 +364,7 @@ func (c *Compiler) genTypeMeta(typeSpec *ast.TypeSpec) string {
 var methodFieldTagRe = regexp.MustCompile(`^(.*)_([^_]*)$`)
 
 func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
-	if result, ok := c.genFuncDecls[decl]; ok {
+	if result, ok := c.genFuncDecls[c.target][decl]; ok {
 		return result
 	}
 
@@ -485,7 +485,7 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 	builder.WriteByte(')')
 
 	result := builder.String()
-	c.genFuncDecls[decl] = result
+	c.genFuncDecls[c.target][decl] = result
 	return result
 }
 
@@ -1090,7 +1090,9 @@ func (c *Compiler) compile() {
 	c.genTypeDecls = make(map[*ast.TypeSpec]string)
 	c.genTypeDefns = make(map[*ast.TypeSpec]string)
 	c.genTypeMetas = make(map[*ast.TypeSpec]string)
-	c.genFuncDecls = make(map[*ast.FuncDecl]string)
+	c.genFuncDecls = make(map[Target]map[*ast.FuncDecl]string)
+	c.genFuncDecls[CPP] = make(map[*ast.FuncDecl]string)
+	c.genFuncDecls[GLSL] = make(map[*ast.FuncDecl]string)
 
 	// Initialize builders
 	c.errors = &strings.Builder{}
