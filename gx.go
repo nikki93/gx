@@ -1371,7 +1371,7 @@ func (c *Compiler) compile() {
 										return true
 									})
 									extern := false
-									for _, name := range spec.Names {
+									for _, name := range valueSpec.Names {
 										if _, ok := c.externs[CPP][c.types.Defs[name]]; ok {
 											extern = true
 										}
