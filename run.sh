@@ -37,7 +37,7 @@ case "$1" in
     if [[ -f build/example.gx.cc ]]; then
       $CLANG -std=c++20 -Wall -O3 -Iexample -o build/example build/example.*.cc
     fi
-    $TIME ./gx$EXE ./example/gxsl build/example_gxsl
+    $TIME ./gx$EXE ./example/gxsl build/example_gxsl build/example_gxsl_ .frag
     if [[ -f build/example_gxsl.gx.cc ]]; then
       $CLANG -std=c++20 -Wall -O3 -o build/example_gxsl build/example_gxsl.*.cc
     fi
@@ -45,9 +45,12 @@ case "$1" in
     if [[ -f build/example ]]; then
       ./build/example
     fi
-    if [[ -f build/example_gxsl ]]; then
-      ./build/example_gxsl > ./build/example_gxsl_output.frag
-      glslangValidator$EXE ./build/example_gxsl_output.frag | sed "s/^ERROR: 0/.\/build\/example_gxsl_output.frag/g" | sed "/\.frag$/d"
+    if [[ -f build/*.frag ]]; then
+      cd build/
+      for f in *.frag; do
+        glslangValidator$EXE $f | sed "s/^ERROR: 0/build\/$f/g" | sed "/\.frag$/d"
+      done
+      cd - > /dev/null
     fi
 
     exit 1

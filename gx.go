@@ -46,11 +46,13 @@ type Compiler struct {
 	genTypeMetas    map[*ast.TypeSpec]string
 	genFuncDecls    map[Target]map[*ast.FuncDecl]string
 
-	indent     int
-	errors     *strings.Builder
-	outputCC   *strings.Builder
-	outputHH   *strings.Builder
-	atBlockEnd bool
+	indent      int
+	errors      *strings.Builder
+	output      *strings.Builder
+	outputCC    *strings.Builder
+	outputHH    *strings.Builder
+	outputGLSLs map[string]*strings.Builder
+	atBlockEnd  bool
 }
 
 //
@@ -69,12 +71,12 @@ func (c *Compiler) errored() bool {
 
 func (c *Compiler) write(s string) {
 	c.atBlockEnd = false
-	if peek := c.outputCC.String(); len(peek) > 0 && peek[len(peek)-1] == '\n' {
+	if peek := c.output.String(); len(peek) > 0 && peek[len(peek)-1] == '\n' {
 		for i := 0; i < 2*c.indent; i++ {
-			c.outputCC.WriteByte(' ')
+			c.output.WriteByte(' ')
 		}
 	}
-	c.outputCC.WriteString(s)
+	c.output.WriteString(s)
 }
 
 func trimFinalSpace(s string) string {
@@ -721,19 +723,6 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 			var typeArgs *types.TypeList
 			switch fun := call.Fun.(type) {
 			case *ast.Ident: // f(...)
-				switch c.target {
-				case CPP:
-					if fun.Name == "GXSL" {
-						if len(call.Args) == 1 {
-							if ident, ok := call.Args[0].(*ast.Ident); ok {
-								c.write(ident.Name)
-								c.write("_GLSL")
-								return
-							}
-						}
-						c.errorf(call.Lparen, "GXSL must be called with exactly one identifier argument")
-					}
-				}
 				c.writeIdent(fun)
 				typeArgs = c.types.Instances[fun].TypeArgs
 			case *ast.SelectorExpr: // pkg.f(...)
@@ -1098,6 +1087,7 @@ func (c *Compiler) compile() {
 	c.errors = &strings.Builder{}
 	c.outputCC = &strings.Builder{}
 	c.outputHH = &strings.Builder{}
+	c.outputGLSLs = map[string]*strings.Builder{}
 
 	// Load main package
 	packagesConfig := &packages.Config{
@@ -1184,12 +1174,12 @@ func (c *Compiler) compile() {
 		}
 	}
 
-	// Collect externs and GXSL entrypoints
-	gxslEntrypoints := make(map[types.Object]bool)
+	// Collect externs and GXSL shaders
+	gxslShaders := make(map[types.Object]bool)
 	{
 		externsRe := regexp.MustCompile(`//gx:externs (.*)`)
 		externRe := regexp.MustCompile(`//gx:extern (.*)`)
-		gxslEntrypointRe := regexp.MustCompile(`//gxsl:entry`)
+		gxslShaderRe := regexp.MustCompile(`//gxsl:shader`)
 		gxslExternRe := regexp.MustCompile(`//gxsl:extern (.*)`)
 		parseDirective := func(re *regexp.Regexp, doc *ast.CommentGroup) string {
 			if doc != nil {
@@ -1268,8 +1258,8 @@ func (c *Compiler) compile() {
 							}
 						}
 					case *ast.FuncDecl:
-						if parseDirective(gxslEntrypointRe, decl.Doc) != "" {
-							gxslEntrypoints[c.types.Defs[decl.Name]] = true
+						if parseDirective(gxslShaderRe, decl.Doc) != "" {
+							gxslShaders[c.types.Defs[decl.Name]] = true
 						} else if declExt := parseDirective(externRe, decl.Doc); declExt != "" {
 							c.externs[CPP][c.types.Defs[decl.Name]] = declExt
 						} else if fileExt != "" {
@@ -1288,7 +1278,7 @@ func (c *Compiler) compile() {
 	var typeSpecs []*ast.TypeSpec
 	var valueSpecs []*ast.ValueSpec
 	var funcDecls []*ast.FuncDecl
-	var gxslEntrypointDecls []*ast.FuncDecl
+	var gxslShaderDecls []*ast.FuncDecl
 	exports := make(map[types.Object]bool)
 	behaviors := make(map[types.Object]bool)
 	objTypeSpecs := make(map[types.Object]*ast.TypeSpec)
@@ -1395,10 +1385,10 @@ func (c *Compiler) compile() {
 						}
 					case *ast.FuncDecl:
 						if _, ok := c.externs[CPP][c.types.Defs[decl.Name]]; !ok {
-							if _, ok := gxslEntrypoints[c.types.Defs[decl.Name]]; !ok {
+							if _, ok := gxslShaders[c.types.Defs[decl.Name]]; !ok {
 								funcDecls = append(funcDecls, decl)
 							} else {
-								gxslEntrypointDecls = append(gxslEntrypointDecls, decl)
+								gxslShaderDecls = append(gxslShaderDecls, decl)
 							}
 						}
 					}
@@ -1436,6 +1426,8 @@ func (c *Compiler) compile() {
 
 	// Output '.cc'
 	{
+		c.output = c.outputCC
+
 		// Includes
 		c.write(includes)
 
@@ -1480,83 +1472,6 @@ func (c *Compiler) compile() {
 		for _, funcDecl := range funcDecls {
 			c.write(c.genFuncDecl(funcDecl))
 			c.write(";\n")
-		}
-
-		// GLSL strings
-		c.write("\n\n")
-		c.write("//\n// GLSL\n//\n\n")
-		for _, gxslEntrypointDecl := range gxslEntrypointDecls {
-			c.write("const char *")
-			c.write(gxslEntrypointDecl.Name.Name)
-			c.write("_GLSL = R\"(\n#version 100\nprecision mediump float;\n\n")
-			c.target = GLSL
-
-			// Storage class variables
-			obj := c.types.Defs[gxslEntrypointDecl.Name]
-			sig := obj.Type().(*types.Signature)
-			for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
-				param := sig.Params().At(i)
-				if storageClass := glslStorageClass(param.Name()); storageClass != "" {
-					if structType, ok := param.Type().Underlying().(*types.Struct); ok {
-						numFields := structType.NumFields()
-						for fieldIndex := 0; fieldIndex < numFields; fieldIndex++ {
-							field := structType.Field(fieldIndex)
-							c.write(storageClass)
-							c.write(" ")
-							c.write(c.genTypeExpr(field.Type(), field.Pos()))
-							c.write(lowerFirst(field.Name()))
-							c.write(";\n")
-						}
-						if numFields > 0 {
-							c.write("\n")
-						}
-					}
-				}
-			}
-
-			// Collect dependencies
-			visited := make(map[ast.Node]bool)
-			var funcDeclDeps []*ast.FuncDecl
-			var visitFuncDeclDeps func(funcDecl *ast.FuncDecl)
-			visitFuncDeclDeps = func(funcDecl *ast.FuncDecl) {
-				if visited[funcDecl] {
-					return
-				}
-				if _, ok := c.externs[GLSL][c.types.Defs[funcDecl.Name]]; ok {
-					return
-				}
-				if funcDecl.Body == nil {
-					return
-				}
-				visited[funcDecl] = true
-				ast.Inspect(funcDecl, func(node ast.Node) bool {
-					if ident, ok := node.(*ast.Ident); ok {
-						if funcDecl, ok := objFuncDecls[c.types.Uses[ident]]; ok {
-							visitFuncDeclDeps(funcDecl)
-						}
-					}
-					return true
-				})
-				if funcDecl != gxslEntrypointDecl {
-					funcDeclDeps = append(funcDeclDeps, funcDecl)
-				}
-			}
-			visitFuncDeclDeps(gxslEntrypointDecl)
-
-			// Function dependencies
-			for _, funcDeclDep := range funcDeclDeps {
-				c.write(c.genFuncDecl(funcDeclDep))
-				c.write(" ")
-				c.writeBlockStmt(funcDeclDep.Body)
-				c.write("\n\n")
-			}
-
-			// Main function
-			c.write("void main() ")
-			c.writeBlockStmt(gxslEntrypointDecl.Body)
-
-			c.target = CPP
-			c.write("\n)\";\n")
 		}
 
 		// Variables
@@ -1665,6 +1580,82 @@ func (c *Compiler) compile() {
 			}
 		}
 	}
+
+	// Output '.glsl's
+	{
+		c.target = GLSL
+		for _, gxslShaderDecl := range gxslShaderDecls {
+			c.output = &strings.Builder{}
+			c.outputGLSLs[gxslShaderDecl.Name.Name] = c.output
+
+			c.write("#version 100\nprecision mediump float;\n\n")
+
+			// Storage class variables
+			obj := c.types.Defs[gxslShaderDecl.Name]
+			sig := obj.Type().(*types.Signature)
+			for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
+				param := sig.Params().At(i)
+				if storageClass := glslStorageClass(param.Name()); storageClass != "" {
+					if structType, ok := param.Type().Underlying().(*types.Struct); ok {
+						numFields := structType.NumFields()
+						for fieldIndex := 0; fieldIndex < numFields; fieldIndex++ {
+							field := structType.Field(fieldIndex)
+							c.write(storageClass)
+							c.write(" ")
+							c.write(c.genTypeExpr(field.Type(), field.Pos()))
+							c.write(lowerFirst(field.Name()))
+							c.write(";\n")
+						}
+						if numFields > 0 {
+							c.write("\n")
+						}
+					}
+				}
+			}
+
+			// Collect dependencies
+			visited := make(map[ast.Node]bool)
+			var funcDeclDeps []*ast.FuncDecl
+			var visitFuncDeclDeps func(funcDecl *ast.FuncDecl)
+			visitFuncDeclDeps = func(funcDecl *ast.FuncDecl) {
+				if visited[funcDecl] {
+					return
+				}
+				if _, ok := c.externs[GLSL][c.types.Defs[funcDecl.Name]]; ok {
+					return
+				}
+				if funcDecl.Body == nil {
+					return
+				}
+				visited[funcDecl] = true
+				ast.Inspect(funcDecl, func(node ast.Node) bool {
+					if ident, ok := node.(*ast.Ident); ok {
+						if funcDecl, ok := objFuncDecls[c.types.Uses[ident]]; ok {
+							visitFuncDeclDeps(funcDecl)
+						}
+					}
+					return true
+				})
+				if funcDecl != gxslShaderDecl {
+					funcDeclDeps = append(funcDeclDeps, funcDecl)
+				}
+			}
+			visitFuncDeclDeps(gxslShaderDecl)
+
+			// Function dependencies
+			for _, funcDeclDep := range funcDeclDeps {
+				c.write(c.genFuncDecl(funcDeclDep))
+				c.write(" ")
+				c.writeBlockStmt(funcDeclDep.Body)
+				c.write("\n\n")
+			}
+
+			// Main function
+			c.write("void main() ")
+			c.writeBlockStmt(gxslShaderDecl.Body)
+			c.write("\n")
+		}
+	}
 }
 
 //
@@ -1676,12 +1667,21 @@ var gxHH string
 
 func main() {
 	// Arguments
-	if len(os.Args) != 3 {
-		fmt.Println("usage: gx <main_package_path> <output_prefix>")
+	nArgs := len(os.Args)
+	if nArgs < 3 {
+		fmt.Println("usage: gx <main_package_path> <output_prefix> [glsl_output_prefix] [glsl_output_suffix]")
 		return
 	}
 	mainPkgPath := os.Args[1]
 	outputPrefix := os.Args[2]
+	glslOutputPrefix := outputPrefix + "_"
+	if nArgs >= 4 {
+		glslOutputPrefix = os.Args[3]
+	}
+	glslOutputSuffix := ".glsl"
+	if nArgs >= 5 {
+		glslOutputSuffix = os.Args[4]
+	}
 
 	// Compile
 	c := Compiler{mainPkgPath: mainPkgPath}
@@ -1719,5 +1719,8 @@ func main() {
 		writeFileIfChanged(filepath.Dir(outputPrefix)+"/gx.hh", gxHH)
 		writeFileIfChanged(outputPrefix+".gx.cc", c.outputCC.String())
 		writeFileIfChanged(outputPrefix+".gx.hh", c.outputHH.String())
+		for name, outputGLSL := range c.outputGLSLs {
+			writeFileIfChanged(glslOutputPrefix+name+".gx"+glslOutputSuffix, outputGLSL.String())
+		}
 	}
 }

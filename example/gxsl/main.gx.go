@@ -1,13 +1,6 @@
 package main
 
 //
-// GXSL API
-//
-
-//gx:extern INVALID
-func GXSL(shaderFunc interface{}) (result string) { return }
-
-//
 // Built-ins
 //
 
@@ -73,7 +66,7 @@ func scaleByNum(vec Vec4, num float64) Vec4 {
 	return vec.Scale(num)
 }
 
-//gxsl:entry
+//gxsl:shader
 func redTextureShader(uniforms RedTextureParams, varyings Varyings) {
 	result := Vec4{-1, -0.2, -0.2, -1}.Negate()
 
@@ -94,5 +87,4 @@ func redTextureShader(uniforms RedTextureParams, varyings Varyings) {
 //
 
 func main() {
-	println(GXSL(redTextureShader))
 }
