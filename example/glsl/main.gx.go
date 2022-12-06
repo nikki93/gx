@@ -1,11 +1,11 @@
 package main
 
 //
-// GLSL API
+// GXSL API
 //
 
 //gx:extern INVALID
-func GLSL(shaderFunc interface{}) (result string) { return }
+func GXSL(shaderFunc interface{}) (result string) { return }
 
 //
 // Built-ins
@@ -94,5 +94,5 @@ func redTextureShader(uniforms RedTextureParams, varyings Varyings) {
 //
 
 func main() {
-	println(GLSL(redTextureShader))
+	println(GXSL(redTextureShader))
 }

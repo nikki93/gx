@@ -688,7 +688,7 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 							c.write(")")
 							return
 						}
-						c.errorf(call.Fun.Pos(), "GLSL operators must be unary or binary")
+						c.errorf(call.Fun.Pos(), "GXSL operators must be unary or binary")
 					}
 				}
 				method = true
@@ -723,7 +723,7 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 			case *ast.Ident: // f(...)
 				switch c.target {
 				case CPP:
-					if fun.Name == "GLSL" {
+					if fun.Name == "GXSL" {
 						if len(call.Args) == 1 {
 							if ident, ok := call.Args[0].(*ast.Ident); ok {
 								c.write(ident.Name)
@@ -731,7 +731,7 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 								return
 							}
 						}
-						c.errorf(call.Lparen, "GLSL must be called with exactly one identifier argument")
+						c.errorf(call.Lparen, "GXSL must be called with exactly one identifier argument")
 					}
 				}
 				c.writeIdent(fun)
