@@ -45,7 +45,7 @@ case "$1" in
     if [[ -f build/example ]]; then
       ./build/example
     fi
-    if [[ -f build/example_glsl ]]; then
+    if [[ -f build/example_gxsl ]]; then
       cd build/
       for f in *.frag; do
         glslangValidator$EXE $f | sed "s/^ERROR: 0/build\/$f/g" | sed "/\.frag$/d"
