@@ -42,7 +42,7 @@ type Compiler struct {
 	methodFieldTags map[types.Object]string
 	genTypeExprs    map[Target]map[types.Type]string
 	genTypeDecls    map[*ast.TypeSpec]string
-	genTypeDefns    map[*ast.TypeSpec]string
+	genTypeDefns    map[Target]map[*ast.TypeSpec]string
 	genTypeMetas    map[*ast.TypeSpec]string
 	genFuncDecls    map[Target]map[*ast.FuncDecl]string
 
@@ -210,7 +210,7 @@ func (c *Compiler) genTypeDecl(typeSpec *ast.TypeSpec) string {
 }
 
 func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
-	if result, ok := c.genTypeDefns[typeSpec]; ok {
+	if result, ok := c.genTypeDefns[c.target][typeSpec]; ok {
 		return result
 	}
 
@@ -247,7 +247,7 @@ func (c *Compiler) genTypeDefn(typeSpec *ast.TypeSpec) string {
 	}
 
 	result := builder.String()
-	c.genTypeDefns[typeSpec] = result
+	c.genTypeDefns[c.target][typeSpec] = result
 	return result
 }
 
@@ -1077,7 +1077,9 @@ func (c *Compiler) compile() {
 	c.genTypeExprs[CPP] = make(map[types.Type]string)
 	c.genTypeExprs[GLSL] = make(map[types.Type]string)
 	c.genTypeDecls = make(map[*ast.TypeSpec]string)
-	c.genTypeDefns = make(map[*ast.TypeSpec]string)
+	c.genTypeDefns = make(map[Target]map[*ast.TypeSpec]string)
+	c.genTypeDefns[CPP] = make(map[*ast.TypeSpec]string)
+	c.genTypeDefns[GLSL] = make(map[*ast.TypeSpec]string)
 	c.genTypeMetas = make(map[*ast.TypeSpec]string)
 	c.genFuncDecls = make(map[Target]map[*ast.FuncDecl]string)
 	c.genFuncDecls[CPP] = make(map[*ast.FuncDecl]string)
@@ -1593,7 +1595,90 @@ func (c *Compiler) compile() {
 
 			c.write("#version 100\nprecision mediump float;\n\n")
 
-			// Storage class variables
+			// Collect dependencies
+			visited := make(map[ast.Node]bool)
+			mainParamTypeExprs := make(map[ast.Node]bool)
+			var typeSpecDeps []*ast.TypeSpec
+			var valueSpecDeps []*ast.ValueSpec
+			var funcDeclDeps []*ast.FuncDecl
+			var visitTypeSpecDeps func(typeSpec *ast.TypeSpec, shouldAppend bool)
+			var visitValueSpecDeps func(valueSpec *ast.ValueSpec)
+			var visitFuncDeclDeps func(funcDecl *ast.FuncDecl)
+			for _, param := range gxslShaderDecl.Type.Params.List {
+				if len(param.Names) > 0 && glslStorageClass(param.Names[0].Name) != "" {
+					ast.Inspect(param.Type, func(node ast.Node) bool {
+						mainParamTypeExprs[node] = true
+						return true
+					})
+				}
+			}
+			inspect := func(node ast.Node) {
+				ast.Inspect(node, func(node ast.Node) bool {
+					if ident, ok := node.(*ast.Ident); ok {
+						if typeSpec, ok := objTypeSpecs[c.types.Uses[ident]]; ok {
+							_, isMainParamTypeExpr := mainParamTypeExprs[ident]
+							visitTypeSpecDeps(typeSpec, !isMainParamTypeExpr)
+						}
+						if valueSpec, ok := objValueSpecs[c.types.Uses[ident]]; ok {
+							visitValueSpecDeps(valueSpec)
+						}
+						if funcDecl, ok := objFuncDecls[c.types.Uses[ident]]; ok {
+							visitFuncDeclDeps(funcDecl)
+						}
+					}
+					return true
+				})
+			}
+			visitTypeSpecDeps = func(typeSpec *ast.TypeSpec, shouldAppend bool) {
+				if visited[typeSpec] {
+					return
+				}
+				if _, ok := c.externs[GLSL][c.types.Defs[typeSpec.Name]]; ok {
+					return
+				}
+				visited[typeSpec] = true
+				inspect(typeSpec)
+				if shouldAppend {
+					typeSpecDeps = append(typeSpecDeps, typeSpec)
+				}
+			}
+			visitValueSpecDeps = func(valueSpec *ast.ValueSpec) {
+				if visited[valueSpec] {
+					return
+				}
+				visited[valueSpec] = true
+				inspect(valueSpec)
+				for _, name := range valueSpec.Names {
+					if _, ok := c.externs[GLSL][c.types.Defs[name]]; ok {
+						return
+					}
+				}
+				valueSpecDeps = append(valueSpecDeps, valueSpec)
+			}
+			visitFuncDeclDeps = func(funcDecl *ast.FuncDecl) {
+				if visited[funcDecl] {
+					return
+				}
+				if _, ok := c.externs[GLSL][c.types.Defs[funcDecl.Name]]; ok {
+					return
+				}
+				visited[funcDecl] = true
+				inspect(funcDecl)
+				if funcDecl != gxslShaderDecl {
+					funcDeclDeps = append(funcDeclDeps, funcDecl)
+				}
+			}
+			inspect(gxslShaderDecl)
+
+			// Types
+			for _, typeSpec := range typeSpecDeps {
+				if typeDefn := c.genTypeDefn(typeSpec); typeDefn != "" {
+					c.write(typeDefn)
+					c.write(";\n\n")
+				}
+			}
+
+			// Main function parameters
 			obj := c.types.Defs[gxslShaderDecl.Name]
 			sig := obj.Type().(*types.Signature)
 			for i, nParams := 0, sig.Params().Len(); i < nParams; i++ {
@@ -1615,60 +1700,6 @@ func (c *Compiler) compile() {
 					}
 				}
 			}
-
-			// Collect dependencies
-			visited := make(map[ast.Node]bool)
-			var valueSpecDeps []*ast.ValueSpec
-			var funcDeclDeps []*ast.FuncDecl
-			var visitValueSpecDeps func(valueSpec *ast.ValueSpec)
-			visitValueSpecDeps = func(valueSpec *ast.ValueSpec) {
-				if visited[valueSpec] {
-					return
-				}
-				visited[valueSpec] = true
-				ast.Inspect(valueSpec, func(node ast.Node) bool {
-					if ident, ok := node.(*ast.Ident); ok {
-						if valueSpec, ok := objValueSpecs[c.types.Uses[ident]]; ok {
-							visitValueSpecDeps(valueSpec)
-						}
-					}
-					return true
-				})
-				for _, name := range valueSpec.Names {
-					if _, ok := c.externs[GLSL][c.types.Defs[name]]; ok {
-						return
-					}
-				}
-				valueSpecDeps = append(valueSpecDeps, valueSpec)
-			}
-			var visitFuncDeclDeps func(funcDecl *ast.FuncDecl)
-			visitFuncDeclDeps = func(funcDecl *ast.FuncDecl) {
-				if visited[funcDecl] {
-					return
-				}
-				if _, ok := c.externs[GLSL][c.types.Defs[funcDecl.Name]]; ok {
-					return
-				}
-				if funcDecl.Body == nil {
-					return
-				}
-				visited[funcDecl] = true
-				ast.Inspect(funcDecl, func(node ast.Node) bool {
-					if ident, ok := node.(*ast.Ident); ok {
-						if funcDecl, ok := objFuncDecls[c.types.Uses[ident]]; ok {
-							visitFuncDeclDeps(funcDecl)
-						}
-						if valueSpec, ok := objValueSpecs[c.types.Uses[ident]]; ok {
-							visitValueSpecDeps(valueSpec)
-						}
-					}
-					return true
-				})
-				if funcDecl != gxslShaderDecl {
-					funcDeclDeps = append(funcDeclDeps, funcDecl)
-				}
-			}
-			visitFuncDeclDeps(gxslShaderDecl)
 
 			// Variables
 			for _, valueSpec := range valueSpecDeps {

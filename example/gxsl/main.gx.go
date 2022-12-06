@@ -42,14 +42,18 @@ var gl_FragColor Vec4
 // Shader
 //
 
+//gx:extern INVALID
 type Varyings struct {
 	FragTexCoord Vec2
 	FragColor    Vec4
 }
 
+//gx:extern INVALID
 type RedTextureParams struct {
 	ColDiffuse Vec4
 	Texture0   Sampler2D
+	Triple     FloatTriple
+	Tricky     Varyings
 }
 
 //gx:extern INVALID
@@ -68,6 +72,16 @@ func scaleByNum(vec Vec4, num float64) Vec4 {
 }
 
 //gx:extern INVALID
+type FloatPair struct {
+	A, B float64
+}
+
+//gx:extern INVALID
+type FloatTriple struct {
+	A, B, C float64
+}
+
+//gx:extern INVALID
 var red = Vec4{-1, -0.2, -0.2, -1}.Negate()
 
 //gxsl:shader
@@ -82,6 +96,9 @@ func redTextureShader(uniforms RedTextureParams, varyings Varyings) {
 	result = result.Multiply(varyings.FragColor)
 
 	result = scaleByFive(result.Scale(result.DotProduct(Vec4{1, 0, 0, 1})))
+
+	floatPair := FloatPair{2, 3}
+	result = result.Scale(floatPair.B)
 
 	gl_FragColor = result
 }
