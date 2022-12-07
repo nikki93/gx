@@ -1067,23 +1067,15 @@ func glslStorageClass(name string) string {
 
 func (c *Compiler) compile() {
 	// Initialize maps
-	c.externs = make(map[Target]map[types.Object]string)
-	c.externs[CPP] = make(map[types.Object]string)
-	c.externs[GLSL] = make(map[types.Object]string)
-	c.fieldIndices = make(map[*types.Var]int)
-	c.methodRenames = make(map[types.Object]string)
-	c.methodFieldTags = make(map[types.Object]string)
-	c.genTypeExprs = make(map[Target]map[types.Type]string)
-	c.genTypeExprs[CPP] = make(map[types.Type]string)
-	c.genTypeExprs[GLSL] = make(map[types.Type]string)
-	c.genTypeDecls = make(map[*ast.TypeSpec]string)
-	c.genTypeDefns = make(map[Target]map[*ast.TypeSpec]string)
-	c.genTypeDefns[CPP] = make(map[*ast.TypeSpec]string)
-	c.genTypeDefns[GLSL] = make(map[*ast.TypeSpec]string)
-	c.genTypeMetas = make(map[*ast.TypeSpec]string)
-	c.genFuncDecls = make(map[Target]map[*ast.FuncDecl]string)
-	c.genFuncDecls[CPP] = make(map[*ast.FuncDecl]string)
-	c.genFuncDecls[GLSL] = make(map[*ast.FuncDecl]string)
+	c.externs = map[Target]map[types.Object]string{CPP: {}, GLSL: {}}
+	c.fieldIndices = map[*types.Var]int{}
+	c.methodRenames = map[types.Object]string{}
+	c.methodFieldTags = map[types.Object]string{}
+	c.genTypeExprs = map[Target]map[types.Type]string{CPP: {}, GLSL: {}}
+	c.genTypeDecls = map[*ast.TypeSpec]string{}
+	c.genTypeDefns = map[Target]map[*ast.TypeSpec]string{CPP: {}, GLSL: {}}
+	c.genTypeMetas = map[*ast.TypeSpec]string{}
+	c.genFuncDecls = map[Target]map[*ast.FuncDecl]string{CPP: {}, GLSL: {}}
 
 	// Initialize builders
 	c.errors = &strings.Builder{}
@@ -1120,7 +1112,7 @@ func (c *Compiler) compile() {
 	// Collect packages
 	var pkgs []*packages.Package
 	{
-		visited := make(map[*packages.Package]bool)
+		visited := map[*packages.Package]bool{}
 		var visit func(pkg *packages.Package)
 		visit = func(pkg *packages.Package) {
 			if !visited[pkg] {
@@ -1144,13 +1136,13 @@ func (c *Compiler) compile() {
 
 	// Collect types info
 	c.types = &types.Info{
-		Types:      make(map[ast.Expr]types.TypeAndValue),
-		Instances:  make(map[*ast.Ident]types.Instance),
-		Defs:       make(map[*ast.Ident]types.Object),
-		Uses:       make(map[*ast.Ident]types.Object),
-		Implicits:  make(map[ast.Node]types.Object),
-		Selections: make(map[*ast.SelectorExpr]*types.Selection),
-		Scopes:     make(map[ast.Node]*types.Scope),
+		Types:      map[ast.Expr]types.TypeAndValue{},
+		Instances:  map[*ast.Ident]types.Instance{},
+		Defs:       map[*ast.Ident]types.Object{},
+		Uses:       map[*ast.Ident]types.Object{},
+		Implicits:  map[ast.Node]types.Object{},
+		Selections: map[*ast.SelectorExpr]*types.Selection{},
+		Scopes:     map[ast.Node]*types.Scope{},
 	}
 	for _, pkg := range pkgs {
 		for k, v := range pkg.TypesInfo.Types {
@@ -1177,7 +1169,7 @@ func (c *Compiler) compile() {
 	}
 
 	// Collect externs and GXSL shaders
-	gxslShaders := make(map[types.Object]bool)
+	gxslShaders := map[types.Object]bool{}
 	{
 		externsRe := regexp.MustCompile(`//gx:externs (.*)`)
 		externRe := regexp.MustCompile(`//gx:extern (.*)`)
@@ -1284,11 +1276,11 @@ func (c *Compiler) compile() {
 	var valueSpecs []*ast.ValueSpec
 	var funcDecls []*ast.FuncDecl
 	var gxslShaderDecls []*ast.FuncDecl
-	exports := make(map[types.Object]bool)
-	behaviors := make(map[types.Object]bool)
-	objTypeSpecs := make(map[types.Object]*ast.TypeSpec)
-	objValueSpecs := make(map[types.Object]*ast.ValueSpec)
-	objFuncDecls := make(map[types.Object]*ast.FuncDecl)
+	exports := map[types.Object]bool{}
+	behaviors := map[types.Object]bool{}
+	objTypeSpecs := map[types.Object]*ast.TypeSpec{}
+	objValueSpecs := map[types.Object]*ast.ValueSpec{}
+	objFuncDecls := map[types.Object]*ast.FuncDecl{}
 	{
 		for _, pkg := range pkgs {
 			for _, file := range pkg.Syntax {
@@ -1311,8 +1303,8 @@ func (c *Compiler) compile() {
 				}
 			}
 		}
-		typeSpecVisited := make(map[*ast.TypeSpec]bool)
-		valueSpecVisited := make(map[*ast.ValueSpec]bool)
+		typeSpecVisited := map[*ast.TypeSpec]bool{}
+		valueSpecVisited := map[*ast.ValueSpec]bool{}
 		for _, pkg := range pkgs {
 			for _, file := range pkg.Syntax {
 				for _, decl := range file.Decls {
@@ -1406,7 +1398,7 @@ func (c *Compiler) compile() {
 	var includes string
 	{
 		re := regexp.MustCompile(`//gx:include (.*)`)
-		visited := make(map[string]bool)
+		visited := map[string]bool{}
 		builder := &strings.Builder{}
 		for _, pkg := range pkgs {
 			for _, file := range pkg.Syntax {
@@ -1596,8 +1588,8 @@ func (c *Compiler) compile() {
 			c.write("#version 100\nprecision mediump float;\n\n")
 
 			// Collect dependencies
-			visited := make(map[ast.Node]bool)
-			mainParamTypeExprs := make(map[ast.Node]bool)
+			visited := map[ast.Node]bool{}
+			mainParamTypeExprs := map[ast.Node]bool{}
 			var typeSpecDeps []*ast.TypeSpec
 			var valueSpecDeps []*ast.ValueSpec
 			var funcDeclDeps []*ast.FuncDecl
