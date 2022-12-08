@@ -606,9 +606,13 @@ func (c *Compiler) writeCompositeLit(lit *ast.CompositeLit) {
 		} else {
 			c.write("\n")
 			c.indent++
-			for _, elt := range lit.Elts {
+			nElts := len(lit.Elts)
+			for i, elt := range lit.Elts {
 				c.writeExpr(elt)
-				c.write(",\n")
+				if !(useParens && i == nElts-1) {
+					c.write(",")
+				}
+				c.write("\n")
 			}
 			c.indent--
 		}
@@ -740,15 +744,18 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 			default:
 				c.writeExpr(fun)
 			}
-			if typeArgs != nil {
-				c.write("<")
-				for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
-					if i > 0 {
-						c.write(", ")
+			switch c.target {
+			case CPP:
+				if typeArgs != nil {
+					c.write("<")
+					for i, nTypeArgs := 0, typeArgs.Len(); i < nTypeArgs; i++ {
+						if i > 0 {
+							c.write(", ")
+						}
+						c.write(trimFinalSpace(c.genTypeExpr(typeArgs.At(i), call.Fun.Pos())))
 					}
-					c.write(trimFinalSpace(c.genTypeExpr(typeArgs.At(i), call.Fun.Pos())))
+					c.write(">")
 				}
-				c.write(">")
 			}
 			c.write("(")
 		}
@@ -1708,10 +1715,12 @@ func (c *Compiler) compile() {
 
 			// Functions
 			for _, funcDecl := range funcDeclDeps {
-				c.write(c.genFuncDecl(funcDecl))
-				c.write(" ")
-				c.writeBlockStmt(funcDecl.Body)
-				c.write("\n\n")
+				if funcDecl.Body != nil {
+					c.write(c.genFuncDecl(funcDecl))
+					c.write(" ")
+					c.writeBlockStmt(funcDecl.Body)
+					c.write("\n\n")
+				}
 			}
 
 			// Main function
