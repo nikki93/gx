@@ -643,7 +643,13 @@ func (c *Compiler) writeSelectorExpr(sel *ast.SelectorExpr) {
 	case GLSL:
 		if ident, ok := sel.X.(*ast.Ident); ok {
 			if glslStorageClass(ident.Name) != "" {
-				c.write(lowerFirst(sel.Sel.Name))
+				if ext, ok := c.externs[GLSL][c.types.Uses[sel.Sel]]; ok {
+					c.write(ext)
+				} else {
+					c.write(c.types.TypeOf(sel.X).(*types.Named).Obj().Name())
+					c.write("_")
+					c.write(sel.Sel.Name)
+				}
 				return
 			}
 		}
@@ -1253,6 +1259,28 @@ func (c *Compiler) compile() {
 										}
 									}
 								}
+								if typ, ok := spec.Type.(*ast.StructType); ok {
+									for _, field := range typ.Fields.List {
+										ext := parseDirective(externRe, field.Comment)
+										if ext == "" {
+											ext = parseDirective(externRe, field.Doc)
+										}
+										if ext != "" {
+											for _, fieldName := range field.Names {
+												c.externs[CPP][c.types.Defs[fieldName]] = ext
+											}
+										}
+										gxslExt := parseDirective(gxslExternRe, field.Comment)
+										if gxslExt == "" {
+											gxslExt = parseDirective(gxslExternRe, field.Doc)
+										}
+										if gxslExt != "" {
+											for _, fieldName := range field.Names {
+												c.externs[GLSL][c.types.Defs[fieldName]] = gxslExt
+											}
+										}
+									}
+								}
 							case *ast.ValueSpec:
 								specExt := parseDirective(externRe, spec.Doc)
 								for _, name := range spec.Names {
@@ -1694,7 +1722,13 @@ func (c *Compiler) compile() {
 							c.write(storageClass)
 							c.write(" ")
 							c.write(c.genTypeExpr(field.Type(), field.Pos()))
-							c.write(lowerFirst(field.Name()))
+							if ext, ok := c.externs[GLSL][field]; ok {
+								c.write(ext)
+							} else {
+								c.write(param.Type().(*types.Named).Obj().Name())
+								c.write("_")
+								c.write(field.Name())
+							}
 							c.write(";\n")
 						}
 						if numFields > 0 {
