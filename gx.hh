@@ -10,6 +10,9 @@
 namespace gx {
 
 
+using uint = unsigned int;
+
+
 //
 // Print
 //

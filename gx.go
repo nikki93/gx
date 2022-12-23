@@ -117,8 +117,16 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 			}
 		case types.Float32, types.Float64, types.UntypedFloat:
 			builder.WriteString("float")
-		case types.Byte:
+		case types.Uint:
+			builder.WriteString("gx::uint")
+		case types.Uint8:
 			builder.WriteString("std::uint8_t")
+		case types.Uint16:
+			builder.WriteString("std::uint16_t")
+		case types.Uint32:
+			builder.WriteString("std::uint32_t")
+		case types.Uint64:
+			builder.WriteString("std::uint64_t")
 		case types.String:
 			builder.WriteString("gx::String")
 		default:
