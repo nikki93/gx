@@ -1202,9 +1202,11 @@ func (c *Compiler) compile() {
 		}
 	}
 
-	// Collect externs and GXSL shaders
+	// Collect exports, externs and GXSL shaders
+	exports := map[types.Object]bool{}
 	gxslShaders := map[types.Object]bool{}
 	{
+		exportRe := regexp.MustCompile(`//gx:export`)
 		externsRe := regexp.MustCompile(`//gx:externs (.*)`)
 		externRe := regexp.MustCompile(`//gx:extern (.*)`)
 		gxslShaderRe := regexp.MustCompile(`//gxsl:shader`)
@@ -1311,9 +1313,13 @@ func (c *Compiler) compile() {
 							}
 						}
 					case *ast.FuncDecl:
+						if parseDirective(exportRe, decl.Doc) != "" {
+							exports[c.types.Defs[decl.Name]] = true
+						}
 						if parseDirective(gxslShaderRe, decl.Doc) != "" {
 							gxslShaders[c.types.Defs[decl.Name]] = true
-						} else if declExt := parseDirective(externRe, decl.Doc); declExt != "" {
+						}
+						if declExt := parseDirective(externRe, decl.Doc); declExt != "" {
 							c.externs[CPP][c.types.Defs[decl.Name]] = declExt
 						} else if fileExt != "" {
 							c.externs[CPP][c.types.Defs[decl.Name]] = fileExt + decl.Name.String()
@@ -1332,7 +1338,6 @@ func (c *Compiler) compile() {
 	var valueSpecs []*ast.ValueSpec
 	var funcDecls []*ast.FuncDecl
 	var gxslShaderDecls []*ast.FuncDecl
-	exports := map[types.Object]bool{}
 	behaviors := map[types.Object]bool{}
 	objTypeSpecs := map[types.Object]*ast.TypeSpec{}
 	objValueSpecs := map[types.Object]*ast.ValueSpec{}
@@ -1612,9 +1617,9 @@ func (c *Compiler) compile() {
 		c.outputHH.WriteString("\n\n")
 		c.outputHH.WriteString("//\n// Function declarations\n//\n\n")
 		for _, funcDecl := range funcDecls {
-			if funcDecl.Recv != nil {
+			export := exports[c.types.Defs[funcDecl.Name]]
+			if !export && funcDecl.Recv != nil {
 				for _, recv := range funcDecl.Recv.List {
-					export := false
 					ast.Inspect(recv.Type, func(node ast.Node) bool {
 						if export {
 							return false
@@ -1625,11 +1630,11 @@ func (c *Compiler) compile() {
 						}
 						return true
 					})
-					if export {
-						c.outputHH.WriteString(c.genFuncDecl(funcDecl))
-						c.outputHH.WriteString(";\n")
-					}
 				}
+			}
+			if export {
+				c.outputHH.WriteString(c.genFuncDecl(funcDecl))
+				c.outputHH.WriteString(";\n")
 			}
 		}
 	}
