@@ -706,19 +706,20 @@ func (c *Compiler) writeCallExpr(call *ast.CallExpr) {
 					if ext, ok := c.externs[GLSL][c.types.Uses[sel.Sel]]; ok && !unicode.IsLetter(rune(ext[0])) {
 						switch len(call.Args) {
 						case 0:
+							c.write("(")
 							c.write(ext)
 							c.write("(")
 							c.writeExpr(sel.X)
-							c.write(")")
+							c.write("))")
 							return
 						case 1:
-							c.write("(")
+							c.write("((")
 							c.writeExpr(sel.X)
 							c.write(") ")
 							c.write(ext)
 							c.write(" (")
 							c.writeExpr(call.Args[0])
-							c.write(")")
+							c.write("))")
 							return
 						}
 						c.errorf(call.Fun.Pos(), "GXSL operators must be unary or binary")
