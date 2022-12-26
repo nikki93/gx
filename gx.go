@@ -302,6 +302,20 @@ func (c *Compiler) genTypeMeta(typeSpec *ast.TypeSpec) string {
 			if field.Type != nil {
 				for _, fieldName := range field.Names {
 					if fieldName.IsExported() {
+						uppercase := false
+						var attribs []string
+						if tag := field.Tag; tag != nil && tag.Kind == token.STRING {
+							unquoted, _ := strconv.Unquote(tag.Value)
+							if attribsTag := reflect.StructTag(unquoted).Get("attribs"); attribsTag != "" {
+								for _, attrib := range strings.Split(attribsTag, ",") {
+									if attrib == "uppercase" {
+										uppercase = true
+									} else {
+										attribs = append(attribs, strings.TrimSpace(attrib))
+									}
+								}
+							}
+						}
 						builder.WriteString("template<")
 						builder.WriteString(typeParams)
 						builder.WriteString(">\nstruct gx::FieldTag<")
@@ -310,17 +324,16 @@ func (c *Compiler) genTypeMeta(typeSpec *ast.TypeSpec) string {
 						builder.WriteString(strconv.Itoa(tagIndex))
 						builder.WriteString("> {\n")
 						builder.WriteString("  inline static constexpr gx::FieldAttribs attribs { .name = \"")
-						builder.WriteString(lowerFirst(fieldName.String()))
+						if uppercase {
+							builder.WriteString(fieldName.String())
+						} else {
+							builder.WriteString(lowerFirst(fieldName.String()))
+						}
 						builder.WriteByte('"')
-						if tag := field.Tag; tag != nil && tag.Kind == token.STRING {
-							unquoted, _ := strconv.Unquote(tag.Value)
-							if attribs := reflect.StructTag(unquoted).Get("attribs"); attribs != "" {
-								for _, key := range strings.Split(attribs, ",") {
-									builder.WriteString(", .")
-									builder.WriteString(strings.TrimSpace(key))
-									builder.WriteString(" = true")
-								}
-							}
+						for _, attrib := range attribs {
+							builder.WriteString(", .")
+							builder.WriteString(attrib)
+							builder.WriteString(" = true")
 						}
 						builder.WriteString(" };\n};\n")
 						tagIndex++
