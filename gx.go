@@ -1144,7 +1144,7 @@ func (c *Compiler) compile() {
 	}
 	c.fileSet = loadPkgs[0].Fset
 
-	// Collect packages
+	// Collect packages in dependency order
 	var pkgs []*packages.Package
 	{
 		visited := map[*packages.Package]bool{}
