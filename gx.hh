@@ -328,6 +328,30 @@ inline bool operator==(const String &a, const char *b) {
 
 
 //
+// Defer
+//
+
+template<typename F>
+struct Defer {
+  F f;
+
+  Defer(const Defer &) = delete;
+  Defer &operator=(const Defer &) = delete;
+
+  Defer(F f_)
+      : f(std::move(f_)) {
+  }
+
+  ~Defer() {
+    f();
+  }
+};
+
+template<typename T>
+Defer(T) -> Defer<T>;
+
+
+//
 // Meta
 //
 

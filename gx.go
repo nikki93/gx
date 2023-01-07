@@ -46,13 +46,16 @@ type Compiler struct {
 	genTypeMetas    map[*ast.TypeSpec]string
 	genFuncDecls    map[Target]map[*ast.FuncDecl]string
 
-	indent      int
+	genIdentifierCount int
+
+	indent     int
+	atBlockEnd bool
+
 	errors      *strings.Builder
 	output      *strings.Builder
 	outputCC    *strings.Builder
 	outputHH    *strings.Builder
 	outputGLSLs map[string]*strings.Builder
-	atBlockEnd  bool
 }
 
 //
@@ -91,6 +94,15 @@ func lowerFirst(s string) string {
 	result := []rune(s)
 	result[0] = unicode.ToLower(result[0])
 	return string(result)
+}
+
+func (c *Compiler) generateIdentifier(prefix string) string {
+	c.genIdentifierCount++
+	builder := &strings.Builder{}
+	builder.WriteString("gx__")
+	builder.WriteString(prefix)
+	builder.WriteString(strconv.Itoa(c.genIdentifierCount))
+	return builder.String()
 }
 
 //
@@ -947,6 +959,17 @@ func (c *Compiler) writeAssignStmt(assignStmt *ast.AssignStmt) {
 	c.writeExpr(assignStmt.Rhs[0])
 }
 
+func (c *Compiler) writeDeferStmt(deferStmt *ast.DeferStmt) {
+	c.write("gx::Defer ")
+	c.write(c.generateIdentifier("Defer"))
+	c.write("([&](){\n")
+	c.indent++
+	c.writeCallExpr(deferStmt.Call)
+	c.write(";\n")
+	c.indent--
+	c.write("});")
+}
+
 func (c *Compiler) writeReturnStmt(retStmt *ast.ReturnStmt) {
 	if len(retStmt.Results) > 1 {
 		c.errorf(retStmt.Results[0].Pos(), "multiple return values not supported")
@@ -1057,6 +1080,8 @@ func (c *Compiler) writeStmt(stmt ast.Stmt) {
 		c.writeIncDecStmt(stmt)
 	case *ast.AssignStmt:
 		c.writeAssignStmt(stmt)
+	case *ast.DeferStmt:
+		c.writeDeferStmt(stmt)
 	case *ast.ReturnStmt:
 		c.writeReturnStmt(stmt)
 	case *ast.BranchStmt:

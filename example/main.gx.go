@@ -830,6 +830,43 @@ func testStrings() {
 }
 
 //
+// Defer
+//
+
+func testDefer() {
+	x := 0
+	{
+		defer func() { x = 1 }()
+		check(x == 0)
+	}
+	check(x == 1)
+
+	setXTo2 := func() {
+		x = 2
+	}
+	{
+		defer setXTo2()
+		check(x == 1)
+	}
+	check(x == 2)
+
+	y := 0
+	setYTo1AndReturn5 := func() int {
+		y = 1
+		return 5
+	}
+	setXToValue := func(val int) {
+		x = val
+	}
+	{
+		defer setXToValue(setYTo1AndReturn5())
+		check(y == 0)
+	}
+	check(y == 1)
+	check(x == 5)
+}
+
+//
 // Main
 //
 
@@ -855,4 +892,5 @@ func main() {
 	testMeta()
 	testDefaults()
 	testStrings()
+	testDefer()
 }
