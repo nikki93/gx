@@ -559,7 +559,13 @@ func (c *Compiler) writeBasicLit(lit *ast.BasicLit) {
 			c.write("f")
 		}
 	case token.STRING:
-		c.write(lit.Value)
+		if lit.Value[0] == '`' {
+			c.write("R\"(")
+			c.write(lit.Value[1 : len(lit.Value)-1])
+			c.write(")\"")
+		} else {
+			c.write(lit.Value)
+		}
 	case token.CHAR:
 		c.write(lit.Value)
 	default:
