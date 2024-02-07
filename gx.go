@@ -92,7 +92,11 @@ func trimFinalSpace(s string) string {
 
 func lowerFirst(s string) string {
 	result := []rune(s)
-	result[0] = unicode.ToLower(result[0])
+	for i := 0; i < len(result) && unicode.IsUpper(result[i]); i++ {
+		if !(i > 0 && i+1 < len(result) && unicode.IsLower(result[i+1])) {
+			result[i] = unicode.ToLower(result[i])
+		}
+	}
 	return string(result)
 }
 
