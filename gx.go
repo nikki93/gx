@@ -1522,6 +1522,9 @@ func (c *Compiler) compile() {
 	{
 		c.output = c.outputCC
 
+		// Macro indicating we're in generated CC
+		c.write("#define GX_GENERATED_CC\n\n")
+
 		// Includes
 		c.write(includes)
 
@@ -1605,6 +1608,9 @@ func (c *Compiler) compile() {
 		// `#pragma once`
 		c.outputHH.WriteString("#pragma once\n\n")
 
+		// Don't re-define in generated CC
+		c.outputHH.WriteString("#ifndef GX_GENERATED_CC\n\n")
+
 		// Includes
 		c.outputHH.WriteString(includes)
 
@@ -1673,6 +1679,9 @@ func (c *Compiler) compile() {
 				c.outputHH.WriteString(";\n")
 			}
 		}
+
+		// Closing `#ifndef GX_GENERATED_CC`
+		c.outputHH.WriteString("\n#endif\n")
 	}
 
 	// Output '.glsl's
