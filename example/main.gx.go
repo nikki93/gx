@@ -827,6 +827,14 @@ func testStrings() {
 		h3 := h2
 		check(strcmp(h1.s, h3.s) == 0)
 	}
+	{
+		secondCharIsO := func(s string) bool {
+			return len(s) >= 2 && s[1] == 'o'
+		}
+		check(secondCharIsO("foo"))
+		check(!secondCharIsO("fxo"))
+		check(!secondCharIsO("x"))
+	}
 }
 
 //

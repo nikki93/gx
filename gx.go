@@ -150,6 +150,9 @@ func (c *Compiler) genTypeExpr(typ types.Type, pos token.Pos) string {
 		}
 		builder.WriteByte(' ')
 	case *types.Pointer:
+		if typ, ok := typ.Elem().(*types.Basic); ok && typ.Kind() == types.String {
+			builder.WriteString("const ")
+		}
 		builder.WriteString(c.genTypeExpr(typ.Elem(), pos))
 		builder.WriteByte('*')
 	case *types.Named:
@@ -503,6 +506,8 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 		typ := param.Type()
 		if _, ok := typ.(*types.Signature); ok {
 			builder.WriteString("auto &&")
+		} else if basicType, ok := typ.(*types.Basic); ok && basicType.Kind() == types.String {
+			builder.WriteString("const gx::String &")
 		} else {
 			builder.WriteString(c.genTypeExpr(typ, param.Pos()))
 		}
@@ -591,6 +596,8 @@ func (c *Compiler) writeFuncLit(lit *ast.FuncLit) {
 		param := sig.Params().At(i)
 		if _, ok := param.Type().(*types.Signature); ok {
 			c.write("auto &&")
+		} else if basicType, ok := param.Type().(*types.Basic); ok && basicType.Kind() == types.String {
+			c.write("const gx::String &")
 		} else {
 			c.write(c.genTypeExpr(param.Type(), param.Pos()))
 		}

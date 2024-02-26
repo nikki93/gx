@@ -301,11 +301,11 @@ struct String {
     return slice[i];
   }
 
-  auto begin() {
+  auto begin() const {
     return slice.begin();
   }
 
-  auto end() {
+  auto end() const {
     return slice.end() - 1;
   }
 };
