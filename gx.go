@@ -8,7 +8,6 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1899,7 +1898,7 @@ func main() {
 					return
 				}
 			}
-			ioutil.WriteFile(path, byteContents, 0644)
+			os.WriteFile(path, byteContents, 0644)
 		}
 		writeFileIfChanged(filepath.Dir(outputPrefix)+"/gx.hh", gxHH)
 		writeFileIfChanged(outputPrefix+".gx.cc", c.outputCC.String())
