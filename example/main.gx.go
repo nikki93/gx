@@ -209,6 +209,14 @@ func testStruct() {
 	}
 }
 
+func testLocalStruct() {
+	type Inner struct {
+		z string
+	}
+	inner := Inner{"hello"}
+	check(inner.z == "hello")
+}
+
 //
 // Methods
 //

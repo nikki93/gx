@@ -1088,6 +1088,30 @@ func (c *Compiler) writeRangeStmt(rangeStmt *ast.RangeStmt) {
 	c.atBlockEnd = true
 }
 
+func (c *Compiler) writeDeclStmt(declStmt *ast.DeclStmt) {
+	switch decl := declStmt.Decl.(type) {
+	case *ast.GenDecl:
+		for _, spec := range decl.Specs {
+			switch spec := spec.(type) {
+			case *ast.TypeSpec:
+				typeDefn := c.genTypeDefn(spec)
+				typeDefnIndented := &strings.Builder{}
+				for _, r := range typeDefn {
+					typeDefnIndented.WriteRune(r)
+					if r == '\n' {
+						for i := 0; i < 2*c.indent; i++ {
+							typeDefnIndented.WriteByte(' ')
+						}
+					}
+				}
+				c.write(typeDefnIndented.String())
+			default:
+				c.errorf(declStmt.Pos(), "unsupported declaration statement")
+			}
+		}
+	}
+}
+
 func (c *Compiler) writeStmt(stmt ast.Stmt) {
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
@@ -1110,6 +1134,8 @@ func (c *Compiler) writeStmt(stmt ast.Stmt) {
 		c.writeForStmt(stmt)
 	case *ast.RangeStmt:
 		c.writeRangeStmt(stmt)
+	case *ast.DeclStmt:
+		c.writeDeclStmt(stmt)
 	default:
 		c.errorf(stmt.Pos(), "unsupported statement type")
 	}
