@@ -532,6 +532,15 @@ func (c *Compiler) genFuncDecl(decl *ast.FuncDecl) string {
 	return result
 }
 
+func (c *Compiler) writePos(node ast.Node) {
+	c.write("\n#line ")
+	p := c.fileSet.Position(node.Pos())
+	c.write(strconv.Itoa(p.Line))
+	c.write(" \"")
+	c.write(strings.Replace(p.Filename, "\\", "/", -1))
+	c.write("\"\n")
+}
+
 //
 // Expressions
 //
@@ -1113,6 +1122,7 @@ func (c *Compiler) writeDeclStmt(declStmt *ast.DeclStmt) {
 }
 
 func (c *Compiler) writeStmt(stmt ast.Stmt) {
+	c.writePos(stmt)
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
 		c.writeExprStmt(stmt)
@@ -1626,6 +1636,7 @@ func (c *Compiler) compile() {
 		c.write("//\n// Function definitions\n//\n")
 		for _, funcDecl := range funcDecls {
 			if funcDecl.Body != nil {
+				c.writePos(funcDecl)
 				c.write("\n")
 				c.write(c.genFuncDecl(funcDecl))
 				c.write(" ")
